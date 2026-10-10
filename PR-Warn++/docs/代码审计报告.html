@@ -1,0 +1,136 @@
+<html style="margin:0;padding:0;">
+<title>PR-Warn++ 代码完整性与实验符合性审计</title>
+<div style="width:100%;box-sizing:border-box;padding:24px;font-family:'Segoe UI','Microsoft YaHei',sans-serif;color:#1f2937;background:#f8fafc;">
+
+  <div style="max-width:1080px;margin:0 auto;">
+    <!-- 结论 -->
+    <div style="background:linear-gradient(135deg,#0f766e,#0d9488);border-radius:14px;padding:22px 26px;color:#fff;">
+      <div style="font-size:13px;letter-spacing:1px;opacity:.85;">CODE AUDIT · v3.2</div>
+      <div style="font-size:24px;font-weight:700;margin-top:4px;">代码完整，28 / 28 个实验全部有实现</div>
+      <div style="margin-top:10px;font-size:14px;line-height:1.7;opacity:.95;">
+        63 个源码文件 · 8,857 行 · 12 个核心消融(A0–A11) + 6 个联合概率方法(G1–G6) + 10 个基线(B0–B9)
+        均已落到实际模块与 CLI，无空壳、无手动占位。代码处于「代码完成、结果待服务器运行」阶段。
+      </div>
+    </div>
+
+    <!-- 流水线架构 -->
+    <div style="margin-top:22px;">
+      <div style="font-size:16px;font-weight:700;margin-bottom:12px;">主流水线与模块对应</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        <div style="flex:1;min-width:130px;background:#fff;border:1px solid #e2e8f0;border-top:3px solid #0d9488;border-radius:10px;padding:10px 12px;">
+          <div style="font-size:13px;font-weight:700;">1 · 数据</div>
+          <div style="font-size:11.5px;color:#64748b;margin-top:4px;line-height:1.5;">刚性网格 grid · 掩码/delta_t · 原因码 · split</div>
+        </div>
+        <div style="flex:1;min-width:130px;background:#fff;border:1px solid #e2e8f0;border-top:3px solid #0d9488;border-radius:10px;padding:10px 12px;">
+          <div style="font-size:13px;font-weight:700;">2 · 弱物理</div>
+          <div style="font-size:11.5px;color:#64748b;margin-top:4px;line-height:1.5;">密度修正 density · 经验功率曲线 P_pc</div>
+        </div>
+        <div style="flex:1;min-width:130px;background:#fff;border:1px solid #e2e8f0;border-top:3px solid #0d9488;border-radius:10px;padding:10px 12px;">
+          <div style="font-size:13px;font-weight:700;">3 · 残差</div>
+          <div style="font-size:11.5px;color:#64748b;margin-top:4px;line-height:1.5;">多图构建 builders · IMFGCN 残差骨干</div>
+        </div>
+        <div style="flex:1;min-width:130px;background:#fff;border:1px solid #e2e8f0;border-top:3px solid #0d9488;border-radius:10px;padding:10px 12px;">
+          <div style="font-size:13px;font-weight:700;">4 · 生成</div>
+          <div style="font-size:11.5px;color:#64748b;margin-top:4px;line-height:1.5;">Direct CFM flow · CVAE/DDIM/VAE-CFM</div>
+        </div>
+        <div style="flex:1;min-width:130px;background:#fff;border:1px solid #e2e8f0;border-top:3px solid #0d9488;border-radius:10px;padding:10px 12px;">
+          <div style="font-size:13px;font-weight:700;">5 · 校准</div>
+          <div style="font-size:11.5px;color:#64748b;margin-top:4px;line-height:1.5;">split conformal · ACI · context fallback</div>
+        </div>
+        <div style="flex:1;min-width:130px;background:#fff;border:1px solid #e2e8f0;border-top:3px solid #0d9488;border-radius:10px;padding:10px 12px;">
+          <div style="font-size:13px;font-weight:700;">6 · 评估/风险</div>
+          <div style="font-size:11.5px;color:#64748b;margin-top:4px;line-height:1.5;">metrics/statistics · 爬坡/CVaR/OOD proxies</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A0-A11 -->
+    <div style="margin-top:24px;">
+      <div style="font-size:16px;font-weight:700;margin-bottom:10px;">核心消融 / 协议 A0–A11</div>
+      <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;font-size:13px;border:1px solid #e2e8f0;">
+        <thead>
+          <tr style="background:#f1f5f9;text-align:left;">
+            <th style="padding:9px 12px;width:52px;">ID</th>
+            <th style="padding:9px 12px;">实验问题</th>
+            <th style="padding:9px 12px;">代码实现</th>
+            <th style="padding:9px 12px;width:60px;text-align:center;">状态</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">A0</td><td style="padding:8px 12px;">直接功率 vs 物理中心+残差</td><td style="padding:8px 12px;color:#475569;">backbone.target_mode</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">A1</td><td style="padding:8px 12px;">密度修正 关/开</td><td style="padding:8px 12px;color:#475569;">physics.density + --no-density</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">A2</td><td style="padding:8px 12px;">GEO→+CORR→+DIR→+ADP 图叠加</td><td style="padding:8px 12px;color:#475569;">builders + AdaptiveAdjacency</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">A3</td><td style="padding:8px 12px;">原始 vs 差分相关图</td><td style="padding:8px 12px;color:#475569;">correlation_graph(mode)</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">A4</td><td style="padding:8px 12px;">Direct CFM vs VAE-CFM</td><td style="padding:8px 12px;color:#475569;">flow.py + GraphVaeCFM</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">A5</td><td style="padding:8px 12px;">独立 CFM vs 真 OT 耦合</td><td style="padding:8px 12px;color:#475569;">scipy Hungarian minibatch OT</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">A6</td><td style="padding:8px 12px;">ODE 步数 4/8/16/32</td><td style="padding:8px 12px;color:#475569;">sample_reverse_ode(steps)</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">A7</td><td style="padding:8px 12px;">静态 conformal vs ACI</td><td style="padding:8px 12px;color:#475569;">split.py + adaptive.py</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">A8</td><td style="padding:8px 12px;">上下文/OOD 回退 关/开</td><td style="padding:8px 12px;color:#475569;">ContextFallbackConformal</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">A9</td><td style="padding:8px 12px;">X / X+M / X+M+Δt 缺失输入</td><td style="padding:8px 12px;color:#475569;">missing_inputs + stress.py</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">A10</td><td style="padding:8px 12px;">风险是否含 OOD/数据质量项</td><td style="padding:8px 12px;color:#475569;">FrozenRiskComposer</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">A11</td><td style="padding:8px 12px;">历史/ Oracle ERA5 / 真预报</td><td style="padding:8px 12px;color:#475569;">weather_protocol + attach</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- G1-G6 + B0-B9 -->
+    <div style="display:flex;flex-wrap:wrap;gap:16px;margin-top:22px;">
+      <div style="flex:1;min-width:320px;">
+        <div style="font-size:16px;font-weight:700;margin-bottom:10px;">联合概率方法 G1–G6</div>
+        <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;font-size:13px;border:1px solid #e2e8f0;">
+          <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:9px 12px;width:50px;">ID</th><th style="padding:9px 12px;">方法</th><th style="padding:9px 12px;width:60px;text-align:center;">状态</th></tr></thead>
+          <tbody>
+            <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">G1</td><td style="padding:8px 12px;">高斯残差</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+            <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">G2</td><td style="padding:8px 12px;">残差自助重采样</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+            <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">G3</td><td style="padding:8px 12px;">高斯 copula</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+            <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">G4</td><td style="padding:8px 12px;">CVAE</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+            <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">G5</td><td style="padding:8px 12px;">扩散 / DDIM</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+            <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">G6</td><td style="padding:8px 12px;">Direct CFM（主方法）</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="flex:1;min-width:320px;">
+        <div style="font-size:16px;font-weight:700;margin-bottom:10px;">基线 B0–B9</div>
+        <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;font-size:13px;border:1px solid #e2e8f0;">
+          <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:9px 12px;width:50px;">ID</th><th style="padding:9px 12px;">基线</th><th style="padding:9px 12px;width:60px;text-align:center;">状态</th></tr></thead>
+          <tbody>
+            <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">B0</td><td style="padding:8px 12px;">持续性 Persistence</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+            <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">B1</td><td style="padding:8px 12px;">物理功率曲线 P_pc</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+            <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">B2 / B3</td><td style="padding:8px 12px;">GRU / TCN</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+            <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">B4 / B5</td><td style="padding:8px 12px;">边际高斯 / Student-t</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+            <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">B6</td><td style="padding:8px 12px;">分位数 + CQR</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+            <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">B7</td><td style="padding:8px 12px;">深度集成</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+            <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">B8 / B9</td><td style="padding:8px 12px;">GraphWaveNet / AGCRN 风格</td><td style="padding:8px 12px;text-align:center;color:#059669;font-weight:700;">✓</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 防泄漏设计 -->
+    <div style="margin-top:22px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;">
+      <div style="font-size:15px;font-weight:700;">防泄漏 / 可复现设计（已落实）</div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:13px;">
+        <span style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:20px;padding:5px 12px;">均值/功率曲线/图仅 Train 拟合</span>
+        <span style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:20px;padding:5px 12px;">时序 Train/Val/Calib/Test 四段</span>
+        <span style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:20px;padding:5px 12px;">天气 issue ≤ origin 严格门</span>
+        <span style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:20px;padding:5px 12px;">五种子显式 + 冻结选择</span>
+        <span style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:20px;padding:5px 12px;">压力测试不触碰标签</span>
+        <span style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:20px;padding:5px 12px;">风险定位 Calib-only</span>
+      </div>
+    </div>
+
+    <!-- 注意事项 -->
+    <div style="margin-top:22px;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px 20px;">
+      <div style="font-size:15px;font-weight:700;color:#92400e;">注意事项 / 待办（非代码缺陷）</div>
+      <ol style="margin:10px 0 0 18px;padding:0;font-size:13px;line-height:1.9;color:#78350f;">
+        <li>本地沙箱 Python 缺 numpy/torch/h5py/yaml，12 个测试无法在本机运行；需在服务器或装依赖后执行（7 个纯 Python 测试已通过）。</li>
+        <li>230 个五种子实验尚未实际运行，所有结果数字待服务器回填；论文正文含 <code>\TODO{}</code>，当前不是可投稿终稿。</li>
+        <li>A11 的「真·预报」需带 issue/valid 时间戳的外部预报档案，是当前唯一外部数据阻塞；Oracle ERA5 明确标注不可部署。</li>
+        <li>轻微：pyproject.toml 版本号 0.1.0 与 tag v3.2.0 不一致（CONTRIBUTING 已记录）。</li>
+      </ol>
+    </div>
+
+  </div>
+</div>
+</html>

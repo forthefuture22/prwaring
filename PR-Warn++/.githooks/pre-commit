@@ -1,0 +1,70 @@
+#!/bin/sh
+# ---------------------------------------------------------------------------
+# pre-commit hook for PR-Warn++.
+#
+#   1. blocks paths that must never enter history (caches, envs, secrets)
+#   2. blocks files larger than 10 MB
+#   3. scans the staged diff for obvious credentials
+#   4. lints staged Python with ruff, if ruff is installed
+#
+# Enable with:  git config core.hooksPath .githooks
+# Bypass with:  git commit --no-verify
+# Targeted overrides: SKIP_SIZE_CHECK=1 / SKIP_SECRET_CHECK=1
+# ---------------------------------------------------------------------------
+
+set -u
+
+fail=0
+list=$(mktemp)
+trap 'rm -f "$list"' EXIT
+
+git diff --cached --name-only --diff-filter=ACM > "$list"
+
+# --- 1. never-commit paths --------------------------------------------------
+blocked=$(grep -E '(^|/)(__pycache__|\.venv|venv|node_modules)/|\.(pyc|pyo|zip|tar\.gz)$|(^|/)\.env($|\.)' "$list" || true)
+if [ -n "$blocked" ]; then
+  printf '\n  These paths must not be committed:\n\n%s\n\n' "$blocked"
+  printf '  Unstage with:  git restore --staged <path>\n\n'
+  exit 1
+fi
+
+# --- 2. size guard ----------------------------------------------------------
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  [ -f "$f" ] || continue
+  size=$(wc -c < "$f" | tr -d ' ')
+  if [ "$size" -gt 10485760 ]; then
+    mb=$(awk -v s="$size" 'BEGIN { printf "%.1f", s / 1048576 }')
+    printf '\n  %s is %s MB, over the 10 MB limit.\n' "$f" "$mb"
+    printf '  Large binaries belong in a GitHub Release asset, not in Git history.\n'
+    printf '  Override once:  SKIP_SIZE_CHECK=1 git commit ...\n\n'
+    if [ "${SKIP_SIZE_CHECK:-0}" != "1" ]; then
+      fail=1
+    fi
+  fi
+done < "$list"
+
+# --- 3. credential scan on the staged diff ----------------------------------
+if [ "${SKIP_SECRET_CHECK:-0}" != "1" ]; then
+  if git diff --cached -U0 | grep -EI '(BEGIN [A-Z ]*PRIVATE KEY|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|xox[baprs]-[A-Za-z0-9-]+)' >/dev/null 2>&1; then
+    printf '\n  A possible credential appears in the staged changes.\n'
+    printf '  Review the diff above. If it is a false positive:\n'
+    printf '  SKIP_SECRET_CHECK=1 git commit ...\n\n'
+    fail=1
+  fi
+fi
+
+# --- 4. lint staged Python (best effort) ------------------------------------
+if [ "$fail" -eq 0 ] && command -v ruff >/dev/null 2>&1; then
+  pys=$(grep -E '\.py$' "$list" || true)
+  if [ -n "$pys" ]; then
+    if ! printf '%s\n' "$pys" | tr '\n' '\0' | xargs -0 -r ruff check --force-exclude; then
+      printf '\n  ruff reported the issues above.\n'
+      printf '  Fix with:  ruff check --fix <files>\n'
+      printf '  (ruff is not installed on every machine; this step is skipped when absent)\n\n'
+      fail=1
+    fi
+  fi
+fi
+
+exit "$fail"

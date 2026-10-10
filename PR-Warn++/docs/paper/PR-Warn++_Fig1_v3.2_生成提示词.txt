@@ -1,0 +1,143 @@
+Use case: infographic-diagram
+Asset type: publication-ready Figure 1 for an IEEE Transactions on Sustainable Energy manuscript
+
+PRIMARY REQUEST
+Create an original, restrained, vector-like scientific framework diagram for PR-Warn++ v3.2. It must show the information architecture of availability-aware joint wind-power forecasting. The central scientific story is:
+forecast-origin-valid data -> weak-physics deterministic center -> direct generation of the final forecast-error field -> three separate reliability outputs.
+
+CANVAS AND STYLE
+- Wide horizontal 16:7 composition, optimized for 7.1-inch IEEE two-column width.
+- White background; thin charcoal-gray strokes; flat vector style; generous whitespace.
+- Four low-saturation colors only: blue=data/availability, green=weak physics and deterministic center, orange=CFM stochastic generation, purple=calibration and risk.
+- No 3D, no glossy effects, no decorative gradients, no photorealism, no paper logos, no watermark.
+- Large readable sans-serif labels. Use short English labels and mathematical notation only.
+- Use small visual metaphors: turbines, time grid, missing cells, S-shaped power curve, graph nodes, temporal waveform, Gaussian noise, flow arrows, scenario fan, interval band, ramp arrows, tail distribution.
+- Do not draw neural-network internals. Do not create a dense poster.
+
+GLOBAL FLOW AND LINE SEMANTICS
+Four connected macro-panels from left to right:
+A. DATA & AVAILABILITY
+B. WEAK-PHYSICS CENTER  [badge: RQ1]
+C. FINAL-ERROR CFM     [badge: RQ2]
+D. RELIABILITY & RISK  [badge: RQ3]
+
+Line semantics:
+- solid dark arrows = inference-time, available at forecast origin
+- short dashed red arrows = training-target construction only
+- dotted purple arrows = Calib-only post-processing
+- detached gray boxes/arrows = oracle or evaluation only
+Add a compact four-item legend at the bottom.
+
+PANEL A — DATA & AVAILABILITY
+- Show a small wind farm, a SCADA stack, and turbine coordinates feeding a rigid 10-min grid.
+- Show a horizontal timeline with a bold vertical marker labeled exactly "forecast origin t".
+- Before t: observed blue points. After t: empty future region.
+- Below it show a small checkerboard with missing and invalid cells.
+- Output three blue chips labeled exactly:
+  "X_fill"   "M"   "Delta t"
+- Add main tensor shape: "[B,N,L,D]".
+- Show a small reason-code audit tag beside the main path, not as a large model input: "reason code".
+- Show optional issue-time weather entering through a small side branch labeled exactly "issue-time forecast" and "as-of join <= t".
+- Put future ERA5 in a fully detached gray box labeled exactly:
+  "future ERA5" / "oracle only"
+- Do not connect future ERA5 to the solid history-only path.
+
+PANEL B — WEAK-PHYSICS CENTER (RQ1)
+- At the top, show valid training points around a monotone S-shaped empirical curve labeled "f_pc".
+- A dashed arrow from training observations shows offline fitting.
+- At inference, latest valid origin-time wind maps through the curve to a weak persistent horizon anchor labeled:
+  "P_pc" and "[B,N,H]".
+- A tiny density-correction symbol may appear before f_pc, labeled only "rho, if available by t".
+- Do not show Jensen/Park, CFD, or a strong wake solver.
+- Show four small graph thumbnails with the same turbine nodes but different edges:
+  "A_geo"   "A_corr"   "A_dir(t)"   "A_adp"
+- Merge them through a compact context gate labeled "alpha_k(t)" into "A_t".
+- Feed [X_fill, M, Delta t] plus A_t into one central green block labeled exactly:
+  "Temporal Conv + Multi-Graph Residual Blocks"
+- Do not label this block recurrent, GRU, LSTM, IMFGCN, or Transformer.
+- Add a dashed red training target callout:
+  "R = Y - P_pc"
+  tiny subtitle: "deterministic residual"
+- Model output: "R_hat".
+- Combine P_pc and R_hat through a visible plus node.
+- Make the main green formula prominent:
+  "Y_det = clip(P_pc + R_hat)"
+  and shape "[B,N,H]".
+
+PANEL C — FINAL-ERROR CFM (RQ2)
+- Make the contrast with Panel B unmistakable.
+- In a slim dashed training lane, show future truth Y and the frozen/chosen Y_det as two curves, with their difference shaded.
+- Put a prominent orange/red target callout:
+  "E = Y - Y_det"
+  tiny subtitle: "final forecast error"
+- Show a small standardization icon.
+- Show Gaussian noise labeled exactly "Z ~ N(0,I)".
+- Depict 3-4 intermediate error waveforms transforming between noise and a structured joint error field.
+- Central process label: "Direct Conditional Flow Matching".
+- Add a tiny time indicator "tau: 1 -> 0".
+- The condition enters from the deterministic representation and fused graph only; label compactly "H_t, A_t".
+- In the solid inference lane, show M Gaussian seeds -> "K_step reverse ODE" -> multiple error fields "E^(1)...E^(M)".
+- Add the SAME unchanged Y_det through a visible plus node.
+- Output a fan of coherent multi-turbine future trajectories labeled:
+  "Joint power scenarios" / "Y^(m)" / "[M,B,N,H]".
+- Put a small bottom badge:
+  "core target ablation: Y vs R vs E"
+- Do not show a VAE on the primary path.
+- Do not write OT-CFM. If OT appears at all, show only a tiny gray ablation tag "A5: minibatch OT" detached from the main path.
+
+PANEL D — RELIABILITY & WIND-SIDE RISK (RQ3)
+Immediately split Y^(m) into three visually separate stacked branches.
+
+D1 JOINT
+- Icon: correlated scenario bundle or dependence grid.
+- Label exactly "Joint scenario fidelity".
+- Tiny metric line: "ES | VS | dependence".
+- Mark this branch gray/evaluation-only. It does not transform the online forecast.
+
+D2 MARGINAL
+- First aggregate turbine scenarios with a sigma/turbine icon to farm scenarios:
+  "P^(m) = sum_i Y_i^(m)" / "[M,B,H]".
+- Show raw scenario quantiles becoming a clean interval band.
+- Dotted Calib-only block labeled "per-horizon split conformal".
+- Output label "C_h^farm".
+- Tiny note: "marginal coverage only".
+- Optional tiny side tags "A7: ACI" and "A8: context/OOD heuristic" must be outside the primary conformal block.
+- Do not show density-ratio conformal.
+- Do not imply simultaneous turbine-horizon coverage or event-probability calibration.
+
+D3 EVENT / TAIL
+- Reuse farm scenarios [M,B,H].
+- Show three outputs with intuitive icons:
+  up/down ramp arrows: "p_ramp"
+  deviation gauge: "p_dev"
+  red tail distribution: "CVaR"
+- Add two small auxiliary diagnostics entering an optional side composition card:
+  "OOD" and "data quality".
+- Label the side card "Calib-fit, Test-frozen" and "A10 supporting ablation".
+- Final purple output card:
+  "Wind-side operational proxies"
+- Tiny footer: "not grid-security states".
+- Never use line-flow risk, voltage stability, frequency stability, reserve adequacy, or operator warning levels as outputs.
+
+VISUAL PRIORITIES
+1. The strongest contrast must be between "R = Y - P_pc" in Panel B and "E = Y - Y_det" in Panel C.
+2. The final-error target E must be the visual center of Panel C.
+3. The unchanged Y_det must visibly bypass the generator and be added back only after error generation.
+4. Panel D must clearly communicate:
+   "joint scenario fidelity != marginal coverage != event/tail reliability".
+5. Every solid-path variable must be available at forecast origin t.
+6. Training truth Y may enter only through dashed target-construction arrows.
+7. Keep approximately 40 short labels total and avoid paragraph text.
+
+EXACT SELF-CHECK BEFORE RENDERING
+- Future ERA5 is detached and labeled oracle only.
+- Main backbone says Temporal Conv + Multi-Graph Residual Blocks, not recurrent.
+- R and E are defined differently and cannot be confused.
+- Direct CFM generates final errors, not raw power, in the main path.
+- VAE and minibatch OT are not on the primary path.
+- Conformal applies only to farm-level per-horizon marginal intervals.
+- Joint scenario quality, marginal coverage, and event reliability are separate branches.
+- Risk outputs are wind-side proxies, not power-system security states.
+- Text remains readable when reduced to IEEE two-column width.
+
+Output a clean high-resolution vector-like scientific infographic with no extra text and no watermark.

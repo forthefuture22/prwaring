@@ -1,0 +1,87 @@
+# =============================================================================
+# PR-Warn++ .gitignore
+# Rule of thumb: if it can be regenerated from tracked source, it does not belong
+# in Git. Committing generated files is how histories become unreadable.
+# =============================================================================
+
+# ---- Python build & cache ---------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+.eggs/
+.Python
+
+# ---- Virtual environments ---------------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+
+# ---- Test & lint caches -----------------------------------------------------
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.hypothesis/
+.tox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# ---- Notebooks --------------------------------------------------------------
+.ipynb_checkpoints/
+
+# ---- Secrets & local environment -------------------------------------------
+# Never commit credentials. Keep a committed .env.example instead.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ---- IDE & OS noise ---------------------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- Project data & generated artifacts ------------------------------------
+data/raw/
+data/interim/
+data/processed/
+outputs/
+output/
+tmp/
+checkpoints/
+
+*.ckpt
+*.pt
+*.pth
+*.npz
+*.npy
+*.parquet
+*.feather
+*.h5
+*.hdf5
+
+# ---- Packaged snapshots -----------------------------------------------------
+# Zip snapshots are how this repo used to be versioned. Use git tags and
+# GitHub Releases instead; the archives stay out of history.
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+
+# ---- Keep tracked placeholders ---------------------------------------------
+!data/**/README.md
+!outputs/**/README.md

@@ -1,0 +1,16 @@
+# <type>(<scope>): <subject>          <- <= 72 chars, imperative mood, no period
+#
+# Why is this change needed?
+#
+#
+# How was it verified? (exact commands / experiment config + seed)
+#
+#
+# -----------------------------------------------------------------------------
+# type   : feat | fix | docs | style | refactor | perf | test | build | ci | chore | exp
+# scope  : data preprocess graphs models cfm calib eval risk baselines cli
+#          experiments docs deps repo
+# break  : put ! after the type or scope, e.g.  feat(cli)!: drop --legacy flag
+# footer : Closes #12   /   BREAKING CHANGE: <description>
+# -----------------------------------------------------------------------------
+# Lines starting with '#' are stripped from the message.

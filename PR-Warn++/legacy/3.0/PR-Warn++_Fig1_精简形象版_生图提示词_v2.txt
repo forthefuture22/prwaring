@@ -1,0 +1,184 @@
+Create a publication-ready Fig. 1 for an IEEE Transactions on Sustainable Energy / Applied Energy manuscript on probabilistic wind-farm forecasting. The figure must be ORIGINAL, not copied from any paper, but visually inspired by the information-design language common in recent wind-power forecasting papers: stage-first workflow, clean modular blocks, wind-turbine / graph / curve / scenario illustrations, sparse text, explicit training-vs-inference paths, and strong visual hierarchy.
+
+STYLE
+- Wide horizontal scientific framework figure, about 16:7, optimized for IEEE two-column width.
+- White background, thin gray borders, flat vector graphics, no 3D, no glossy icons, no decorative gradients.
+- Four low-saturation scientific colors only: blue for data, green for deterministic/physics, orange for stochastic generation, purple for reliability/risk.
+- Use simple visual metaphors instead of paragraphs: turbine farm, time axis, missing-data grid, S-shaped power curve, graph nodes/edges, wind-direction arrows, deterministic forecast curve, Gaussian noise cloud, flow arrows, multiple generated trajectories, fan chart, calibration band, ramp-risk gauge.
+- Minimal text. Keep ONLY essential short English labels and equations. No long explanatory sentences inside the figure.
+- Use large readable sans-serif labels. Important equations should be larger than ordinary labels.
+
+OVERALL LAYOUT
+Four connected macro-panels from left to right:
+A. Data & Availability
+B. Weak-Physics Residual Center   [small badge: RQ1]
+C. Final-Error CFM               [small badge: RQ2]
+D. Reliability & Risk            [small badge: RQ3]
+
+Use:
+solid arrows = inference / forecast-origin available
+short dashed arrows = training-only target construction
+dotted arrows = calibration-only
+gray detached branch = oracle/evaluation only
+Include a tiny legend at the bottom; do not use a full-width large legend.
+
+PANEL A — DATA & AVAILABILITY
+Make this panel visually intuitive rather than text-heavy.
+Show a small wind farm with several turbines + a compact SCADA database icon feeding into a horizontal 10-min timeline.
+Place a bold red vertical line at the forecast origin labeled only: “t”.
+Before t: blue observed points. After t: empty future region.
+Below the timeline show a small checkerboard with several missing cells to represent missing/abnormal observations.
+Then three compact output chips:
+“X_fill”   “M”   “ΔT”
+with one tensor annotation below them:
+[B,N,L,D]
+Optional issue-time weather can enter through a small cloud/wind icon.
+Place “ERA5 future” in a detached gray box outside the main flow with a small tag:
+“oracle only”
+Do NOT connect ERA5 future to the main solid inference path.
+
+PANEL B — WEAK-PHYSICS RESIDUAL CENTER (RQ1)
+This panel should be visually dominated by TWO illustrations:
+1) a small S-shaped empirical wind-power curve f_pc;
+2) a compact multi-graph wind-farm diagram.
+
+At top-left show valid training points around an S-shaped power curve and label only:
+“f_pc”
+A small dashed arrow from training data indicates it is fitted offline.
+At inference, latest valid wind v_t* maps through the curve to a simple flat/weak future anchor curve labeled:
+“P_pc”
+
+Under or beside it show four tiny graph thumbnails using the SAME turbine nodes but different edges:
+“A_geo”  “A_corr”  “A_dir(t)”  “A_adp”
+Use geographic lines, correlation arcs, directional wind arrows, and learned dashed edges to make them visually distinct.
+Merge them through one small gate icon labeled:
+“α_k(t)”
+into:
+“A_t”
+
+Feed [X_fill, M, ΔT] + A_t into one compact central block:
+“Graph-Recurrent Residual Model”
+Do not draw internal neural layers.
+
+Show a TRAINING-ONLY dashed target callout in a contrasting red outline:
+R = Y − P_pc
+small subtitle only:
+“deterministic residual”
+
+Model output:
+R_hat
+Combine visually with P_pc using a plus node, producing the most prominent green formula in this panel:
+Y_det = clip(P_pc + R_hat)
+[B,N,H]
+Represent Y_det with one clean deterministic multi-step curve beside the formula.
+
+PANEL C — FINAL-ERROR CONDITIONAL FLOW MATCHING (RQ2)
+This panel should be more pictorial than mathematical.
+The central visual idea: a deterministic curve plus a stochastic ERROR FIELD generator.
+
+At the top, use a thin dashed TRAINING lane.
+Show truth Y and Y_det as two small curves; shade the difference between them.
+Place one very prominent orange/red callout:
+E = Y − Y_det
+small subtitle:
+“final forecast error”
+This must look clearly different from R in Panel B.
+
+Next show a Gaussian noise cloud labeled:
+Z ~ N(0,I)
+A sequence of 3–4 curved arrows / intermediate faded waveforms gradually morphs noise into a structured error waveform.
+Label the process only:
+“Conditional Flow Matching”
+with a tiny τ: 1 → 0 indicator.
+Do NOT write long interpolation or loss equations in Fig.1.
+Do NOT show VAE.
+Do NOT write OT-CFM.
+
+At inference, show M small noise seeds entering the flow block and emerging as multiple colored error trajectories:
+E^(1)…E^(M)
+[M,B,N,H]
+
+Then add the SAME deterministic curve Y_det to these errors using a visible plus node.
+Output a fan of multiple coherent future power trajectories labeled:
+“Power scenarios”
+Y^(m)
+[M,B,N,H]
+
+Place one small badge below this panel, not a long sentence:
+“Y vs R vs E”
+with subtitle in tiny font:
+“core ablation”
+
+PANEL D — RELIABILITY & WIND-SIDE RISK (RQ3)
+This panel must visually split into THREE parallel branches immediately after Y^(m). Use three stacked compact cards with icons.
+
+Branch 1 — JOINT
+Icon: bundle of multiple scenario trajectories / correlation grid.
+Label:
+“Joint fidelity”
+Below in tiny text:
+“ES · VS · dependence”
+No transformation arrow back into the model; evaluation only.
+
+Branch 2 — MARGINAL
+Icon: fan chart becoming a clean calibrated interval band.
+Label:
+“Marginal calibration”
+Then a small dotted calibration block:
+“Split conformal”
+Output:
+C_i,h
+Tiny note only:
+“coverage only”
+Do not imply event calibration.
+
+Branch 3 — EVENT / TAIL
+First visually aggregate turbine scenarios into one farm-level trajectory bundle using a Σ turbine icon.
+Write only:
+P^(m) = Σ_i Y_i^(m)
+[M,B,H]
+Then show three intuitive output icons:
+- up/down ramp arrow: “p_ramp”
+- deviation gauge: “p_dev”
+- tail histogram / red tail: “CVaR”
+Optional event calibration may be a tiny dotted side box labeled:
+“event calib.”
+
+At far right place a clean final purple output card with wind-turbine + warning-gauge icon:
+“Wind-side risk proxies”
+Do NOT use “grid security”, “voltage stability”, “frequency stability”, “reserve adequacy” as outputs.
+If space allows, put one tiny gray footer:
+“not grid-security states”
+
+VISUAL PRIORITIES
+1. The main scientific visual contrast must be:
+R = Y − P_pc   versus   E = Y − Y_det
+Place them in different panels, different accent colors, and different visual contexts.
+2. Make the generation target “final error E” visually central in Panel C.
+3. Make Panel D clearly show three distinct concepts:
+Joint fidelity  ≠  Marginal calibration  ≠  Event/tail risk
+4. Avoid long research-question sentences. RQ1/RQ2/RQ3 appear only as small circular badges.
+5. Avoid showing architecture internals, optimizer details, loss equations, alpha definitions, or metric formulas.
+6. Keep no more than about 35–45 textual labels in the entire figure.
+7. Use visual symbols wherever possible instead of words.
+8. Ensure all solid-path information is available at forecast origin t.
+9. Training truth Y may enter only through dashed arrows into R and E target construction.
+10. The figure must remain readable when reduced to about 7.1 inches / 18 cm width.
+
+COMPOSITION REFERENCE PRINCIPLES
+- Follow the stage-first visual organization common in IEEE TSTE wind forecasting framework figures: input/preprocessing -> deterministic forecasting -> probabilistic generation/combination -> operational outputs.
+- Use the compact wind-farm-to-graph visual metaphor common in recent spatio-temporal wind-farm GNN papers.
+- Use an empirical power-curve mini-plot as the physics cue, similar in spirit to physics-constrained wind-power forecasting figures, but create a new original layout.
+- Use noise-to-trajectory transformation imagery common to diffusion/flow scenario-generation figures, while keeping the PR-Warn++ final-error target E clearly unique.
+
+FINAL QUALITY CHECK
+Before rendering, verify:
+- future ERA5 is isolated as oracle only;
+- R and E are impossible to confuse;
+- Y_det is reused unchanged when scenarios are reconstructed;
+- no training truth leaks into the solid inference path;
+- conformal calibration visually applies to marginal intervals only;
+- ramp/deviation/CVaR are scenario-derived wind-side proxies;
+- the figure is visual, sparse, and publication-like rather than a dense poster.
+
+Render as a clean high-resolution vector-like scientific figure, suitable for export to SVG/PDF and insertion as Fig. 1 in an IEEE TSTE manuscript.

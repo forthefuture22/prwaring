@@ -1,0 +1,59 @@
+# =============================================================================
+# PR-Warn++ .gitattributes
+# Purpose: identical line endings on every machine, and no broken diffs on
+# binary research assets (.docx / .pdf / figures).
+# =============================================================================
+
+# Store LF in the repository and check out LF in the working tree.
+* text=auto eol=lf
+
+# ---- Explicit text types (correct diff driver + language detection) --------
+*.py       text diff=python
+*.pyi      text diff=python
+*.md       text diff=markdown
+*.txt      text
+*.rst      text
+*.yaml     text
+*.yml      text
+*.json     text
+*.toml     text
+*.ini      text
+*.cfg      text
+*.tex      text
+*.bib      text
+*.svg      text
+*.sh       text eol=lf
+
+# ---- Windows-only scripts keep CRLF ----------------------------------------
+*.bat      text eol=crlf
+*.cmd      text eol=crlf
+*.ps1      text eol=crlf
+
+# ---- Binary assets: never diff or merge ------------------------------------
+*.png      binary
+*.jpg      binary
+*.jpeg     binary
+*.gif      binary
+*.ico      binary
+*.pdf      binary
+*.doc      binary
+*.docx     binary
+*.pptx     binary
+*.xlsx     binary
+*.zip      binary
+*.gz       binary
+*.7z       binary
+*.pt       binary
+*.pth      binary
+*.ckpt     binary
+*.npz      binary
+*.npy      binary
+*.parquet  binary
+*.feather  binary
+*.h5       binary
+*.pyc      binary
+
+# ---- Do not count research prose toward language statistics ----------------
+*.md       linguist-documentation
+*.tex      linguist-documentation
+*.bib      linguist-documentation

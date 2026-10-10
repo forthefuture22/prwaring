@@ -1,0 +1,281 @@
+\documentclass[journal]{IEEEtran}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{cite}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{url}
+
+\newcommand{\TBD}[1]{\textbf{[TBD: #1]}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\1}{\mathbb{I}}
+
+\begin{document}
+
+\title{Power-Curve-Guided Multi-Graph Residual Flow Matching for Calibrated Ultra-Short-Term Wind Power Forecasting and Ramp-Risk Quantification}
+
+\author{\TBD{First Author}, \TBD{Coauthors}, and \TBD{Corresponding Author}%
+\thanks{Manuscript prepared for possible submission to IEEE Transactions on Sustainable Energy. Author names, affiliations, funding, and correspondence information must be inserted before submission.}%
+}
+
+\maketitle
+
+\begin{abstract}
+The increasing penetration of wind generation makes ultra-short-term forecasting valuable not only for point accuracy but also for characterizing correlated power trajectories and rapid ramp events. This paper develops PR-Warn++, an availability-aware framework that separates deterministic center forecasting from joint forecast-error generation. A training-only empirical power curve provides an auditable weak physical anchor, while a mask-aware dynamic multi-graph recurrent backbone predicts turbine-level residual dynamics from geographic, statistical, directional, and learned dependencies. Rather than regenerating the dominant power trend, conditional flow matching directly models the multi-turbine, multi-horizon error field around the deterministic center and produces coherent power scenarios through numerical integration. A horizon-wise split-conformal layer calibrates marginal prediction intervals, with temporal- and covariate-shift extensions treated separately from the base coverage claim. The calibrated scenarios are finally translated into continuous wind-side risk proxies, including upward/downward ramp probabilities and tail shortfall conditional value-at-risk. The evaluation will use the SDWPF benchmark under a strict history-only information protocol, with oracle-weather and external-data experiments reported separately. \TBD{Insert final quantitative summary after experiments: deterministic gain, CRPS/ES/VS gain, coverage, ramp skill, and runtime.}
+\end{abstract}
+
+\begin{IEEEkeywords}
+wind power forecasting, probabilistic forecasting, spatio-temporal graph neural network, flow matching, conformal prediction, ramp events, scenario generation.
+\end{IEEEkeywords}
+
+\section{Introduction}
+The operational value of wind power forecasting is shifting from predicting a single expected trajectory toward characterizing the range, dependence, and consequences of plausible future power states. This shift is particularly important for ultra-short-term operation of large turbine arrays, where forecast errors are jointly shaped by temporal persistence, spatially correlated atmospheric forcing, changing directional interactions, operating-state transitions, and data-quality degradation. The SDWPF benchmark exposes many of these difficulties at scale through 10-min measurements from 134 turbines together with turbine locations and contextual variables \cite{zhou2024sdwpf}. Consequently, recent wind-power forecasting research has increasingly treated spatial structure, temporal nonstationarity, missingness, and uncertainty as first-class modeling problems rather than secondary preprocessing issues.
+
+Substantial progress has already been made on spatial--temporal representation learning. In TSTE, time-aware graph convolution has been used for probabilistic wind-power prediction \cite{tang2024timeaware}; WPFormer models spatial--temporal dependence with graph Transformers and auto-correlation \cite{liang2025wpformer}; graph-contrastive learning improves robustness to perturbations and incomplete observations \cite{liu2025graphcontrast}; and online dynamic matching has been introduced to cope with temporal concept drift \cite{li2025dynamic}. Related Applied Energy studies explicitly mine wind-speed/wind-direction correlations for wind-farm clusters \cite{wang2025clustergraph}, while physics-oriented directed graphs have been developed to represent wake-affected turbine interactions \cite{hou2026wake}. These advances establish that graph construction, adaptive topology, and directional dependence are now mature components of the field. Accordingly, PR-Warn++ does not claim a dynamic graph by itself as the principal novelty; the graph module is used to support a different forecasting decomposition described below.
+
+Probabilistic forecasting has evolved in parallel. Multi-objective interval estimation \cite{chen2024interval}, meta-learning-based adaptive probabilistic forecasting \cite{meng2024meta}, missing-data-tolerant nonparametric forecasting \cite{meng2026missing}, and spatio-temporal non-crossing quantile prediction \cite{chen2025noncrossing} have improved marginal uncertainty estimation. Conformal methods have also entered regional wind forecasting: Jonkers \emph{et al.} combine deep spatial representations with conformalized regression forests and conformal predictive systems to obtain calibrated regional distributions \cite{jonkers2024conformal}. At the operational end, Ko \emph{et al.} jointly forecast wind power and ramp rate in deterministic and probabilistic forms \cite{ko2026ramp}, while a TSTE risk-scenario-perception framework explicitly argues that statistical forecast accuracy should be connected to application value \cite{yang2025risk}. These studies make two points clear. First, interval calibration and ramp-aware forecasting cannot be presented as new concepts in isolation. Second, a remaining distinction must be made between \emph{marginal reliability} of individual horizons and the \emph{joint dependence} required to estimate probabilities of farm-wide trajectory events.
+
+Physics and meteorological information provide another active line of work. Power-curve knowledge has been embedded in noise-resilient deep forecasting \cite{gao2025tgdpF}, and physics-informed reinforcement learning has been proposed for probabilistic prediction under extreme events \cite{liu2024physicsrl}. TSTE studies have addressed NWP-error propagation during transitional weather \cite{zhang2026transitional}, overlapping historical NWP products \cite{zhao2025nwp}, and risk-scenario perception from NWP fluctuations \cite{yang2025risk}. More recently, wide-area meteorological representation learning has been jointly optimized for deterministic and probabilistic wind forecasting \cite{cao2026joint}. Thus, neither a power curve nor exogenous weather information is itself sufficient to establish novelty. A more fundamental issue is \emph{information availability}: the variables used at forecast origin must actually be available at that time. This is especially relevant to SDWPF-full, whose future ERA5 variables are retrospective reanalysis; the data descriptor explains that ERA5 was introduced to separate meteorological-forecast error from the wind-power task \cite{zhou2024sdwpf}. In this work, future ERA5 is therefore excluded from the primary history-only protocol and is treated only as an explicitly labeled oracle-weather experiment.
+
+Generative forecasting further changes the predictive object from marginal quantiles to complete trajectories. Conditional diffusion has recently been combined with similar-curve matching for probabilistic wind-power forecasting \cite{gao2026diffusion}, and graph latent diffusion has been developed for efficient regional probabilistic wind-speed forecasting \cite{ma2026stgld}. Such work demonstrates that generative modeling itself is no longer a defensible stand-alone contribution. The unresolved question for the present problem is instead \emph{what the generator should model}. Directly generating raw power forces the stochastic model to relearn both the dominant wind-speed--power trend and the remaining forecast uncertainty. We hypothesize that the latter is a better-defined stochastic target after a deterministic predictor has already extracted the predictable center.
+
+The preceding literature therefore leaves three tightly connected gaps. First, physics-guided and graph-based deterministic forecasting is usually optimized as the final predictive model, whereas generative models commonly learn raw future trajectories; the intermediate object---the \emph{joint final forecast-error field} after a physics-guided deterministic center---has received much less attention. Second, calibrated prediction intervals and coherent scenario generation are often evaluated separately. Marginal conformal coverage does not by itself calibrate the probability of a nonlinear trajectory event such as a multi-turbine ramp, so joint scenario quality, marginal interval reliability, and event-probability reliability must be evaluated as distinct properties. Third, many high-performing formulations obscure the forecast-origin information boundary through retrospective weather, aggressive deletion/interpolation of abnormal SCADA points, or unqualified robustness claims. A topologically rich probability model is of limited operational value if its inputs or guarantees are unavailable at deployment time.
+
+To address these gaps, we develop PR-Warn++, an availability-aware framework that decomposes turbine-array forecasting into an auditable empirical center, deterministic residual dynamics, and a stochastic final-error field. A power curve fitted only on valid training observations provides a weak physical reference rather than a universal aerodynamic truth. A mask-aware recurrent multi-graph backbone then predicts the deterministic deviation from this reference using geographic, statistical, directional, and adaptive dependencies. Conditional flow matching (CFM) is applied \emph{after} this deterministic stage to model the joint multi-turbine, multi-horizon error field $\bm E=\bm Y-\hat{\bm Y}^{\rm det}$ rather than the raw power trajectory. Generated error fields are added back to the deterministic center to form coherent scenarios. Reliability is subsequently separated into horizon-wise conformal interval calibration and scenario-derived event/tail assessment, from which continuous wind-side ramp, deviation, and CVaR proxies are calculated. CFM is adopted as a candidate generator because continuous vector-field regression provides a natural direct mapping between simple noise and conditional error fields \cite{lipman2023fm,kollovieh2025tsflow}; its quality and sampling cost are treated as empirical questions and are compared against diffusion and non-generative baselines.
+
+The contributions are summarized as follows.
+\begin{itemize}
+\item \textbf{Availability-aware weak-physics residual center.} Different from power-curve-constrained predictors that use physical consistency as the final forecasting objective \cite{gao2025tgdpF,liu2024physicsrl}, and from NWP-driven formulations that rely on forecast meteorology \cite{zhang2026transitional,cao2026joint}, we define a strict history-only main protocol and use a training-only empirical power curve only as an auditable reference. A multi-view graph recurrent model learns $\bm R=\bm Y-\bm P^{\rm pc}$, while masks and elapsed-time variables preserve the information carried by missing or invalid SCADA measurements. The contribution is the forecasting decomposition and information boundary, not the isolated use of a power curve, missing-data encoding, or adaptive graph.
+
+\item \textbf{Direct joint generation of the final forecast-error field.} Unlike recent conditional-diffusion approaches that generate future renewable trajectories directly \cite{gao2026diffusion,ma2026stgld}, PR-Warn++ models $p(\bm E\mid\mathcal I_t)$ with direct CFM after the deterministic center, where $\bm E=\bm Y-\hat{\bm Y}^{\rm det}$. This removes the need for the primary generator to relearn the predictable power trend and makes deterministic error reduction and stochastic dependence modeling separately testable. Standard CFM is distinguished explicitly from genuine optimal-transport coupling.
+
+\item \textbf{Separation of joint scenario quality, marginal calibration, and operational event risk.} In contrast to interval-focused conformal forecasting \cite{jonkers2024conformal,chen2024interval} and direct ramp-rate prediction \cite{ko2026ramp}, the proposed evaluation treats these as three different objects: coherent multi-turbine/multi-horizon scenarios, horizon-wise conformal reliability, and scenario-derived ramp/deviation/tail-risk probabilities. This avoids implying that conformal interval coverage automatically calibrates nonlinear ramp-event probabilities and provides a traceable scenario-to-risk chain for wind-side operation.
+
+\item \textbf{Auditable evaluation under data degradation and information shift.} The primary experiments preserve the rigid sampling grid and explicitly expose validity masks and elapsed times, while future ERA5 is reserved for an oracle-weather upper bound and issue-time weather is evaluated separately. Missingness, extreme regimes, and covariate/temporal shift are therefore evaluated without conflating retrospective information with deployable inputs or describing heuristic OOD fallbacks as distribution-free guarantees.
+\end{itemize}
+
+\section{Related Work}
+\subsection{Availability-Aware Spatio-Temporal and Physics-Guided Forecasting}
+Recent TSTE studies show that spatial structure is already a mature design axis in wind forecasting. Time-aware graph convolution has been used for probabilistic multi-site prediction \cite{tang2024timeaware}; global-information adaptive graph convolution \cite{yang2024gcn}, auto-correlation-aware graph Transformers \cite{liang2025wpformer}, and graph-contrastive learning \cite{liu2025graphcontrast} further improve spatial-temporal representation and robustness. Meanwhile, dynamic matching and online modeling address temporal concept drift \cite{li2025dynamic}, and end-to-end probabilistic forecasting with missing-data tolerance explicitly treats missing observations as part of the forecasting problem \cite{meng2026missing}. SCADA preprocessing itself has also been studied in detail, including power-curve-based outlier filtering and feature screening \cite{liu2025periodic}. These works imply that a dynamic graph, an adaptive topology, or a missing-data module cannot by themselves constitute the central novelty of a new forecasting framework.
+
+Physics and meteorology provide complementary structure. Applied Energy has embedded wind-power-curve knowledge into noise-resilient deep forecasting \cite{gao2025tgdpF} and introduced physics-informed probabilistic learning for extreme events \cite{liu2024physicsrl}. Direction-aware spatial dependence has been modeled through wind-speed/wind-direction correlation mining \cite{wang2025clustergraph}, while wake-oriented directed graphs explicitly encode directional turbine interactions \cite{hou2026wake}. TSTE studies have exploited overlapping historical NWP products \cite{zhao2025nwp} and modeled meteorological-error propagation under transitional weather \cite{zhang2026transitional}. The common limitation for the present task is not a lack of graph, physical, or meteorological components, but the need to make their information boundary auditable. PR-Warn++ therefore uses a training-only empirical power curve as a weak reference, retains missingness indicators, and learns deterministic residual dynamics only from variables available under the declared forecast-origin protocol. The claimed contribution is this availability-aware residual formulation rather than any individual graph or physical component.
+
+\subsection{Probabilistic Forecasting and Generative Scenario Modeling}
+Probabilistic wind forecasting has progressed from prediction intervals to adaptive distributions and coherent trajectory generation. TSTE has studied multi-objective interval construction \cite{chen2024interval}, meta-learning-based adaptation across lead times and locations \cite{meng2024meta}, and probabilistic forecasting under missing data \cite{meng2026missing}. Applied Energy has addressed non-crossing spatio-temporal quantiles \cite{chen2025noncrossing}, conformalized regional predictive distributions \cite{jonkers2024conformal}, and online density adaptation under virtual and real concept drift \cite{he2025drift}. These studies establish strong baselines for marginal uncertainty and calibration.
+
+More recently, generative models have made joint future trajectories an explicit predictive object. Transformer-based diffusion has been used for spatio-temporal wind-speed probabilistic forecasting in TSTE \cite{liu2026diffusion}. In Applied Energy, enhanced conditional diffusion with similar-curve matching directly generates probabilistic wind-power trajectories \cite{gao2026diffusion}, while graph latent diffusion targets efficient regional ultra-short-term wind-speed scenario generation \cite{ma2026stgld}. A separate 2026 study jointly optimizes deterministic and probabilistic wind-power forecasting using wide-area meteorological representation learning \cite{cao2026joint}. Consequently, neither ``using diffusion/flow'' nor ``joint deterministic and probabilistic forecasting'' is sufficient as a novelty statement. The question posed here is narrower: after a deterministic predictor has extracted the predictable center, should the stochastic generator continue to model raw future power, or instead model the joint field of errors that remains? PR-Warn++ adopts the latter formulation and tests it directly against raw-power and intermediate-residual generation under the same generator capacity.
+
+\subsection{Calibration, Distribution Shift, and Operational Risk Translation}
+Recent work also narrows the gap between forecast statistics and operational use. Ko \emph{et al.} jointly forecast wind generation and ramp rate in deterministic and probabilistic forms \cite{ko2026ramp}, while risk-scenario perception has been introduced to align wind-supply forecasting with application-oriented risk regions \cite{yang2025risk}. Conformalized wind forecasting provides calibrated marginal or predictive distributions \cite{jonkers2024conformal}, whereas online concept-drift handling \cite{he2025drift} and transitional-weather modeling \cite{zhang2026transitional} address changing data regimes from different perspectives.
+
+These strands should not be conflated. A generator may reproduce multivariate dependence well but have biased marginal quantiles; a conformal interval may attain nominal marginal coverage without calibrating the probability of a nonlinear multi-turbine ramp event; and a statistically well-calibrated forecast may still have little event-discrimination skill. PR-Warn++ therefore treats joint scenario fidelity, horizon-wise marginal calibration, and event/tail-risk reliability as three separate validation targets. Split conformal calibration is used only for the marginal interval claim, while ramp/deviation probabilities and CVaR are derived from farm-level scenarios and evaluated against observed events and realized losses. This separation defines the third scientific question of the paper and prevents interval coverage from being used as evidence for claims it does not support.
+
+\section{Problem Formulation and Information Boundary}
+Consider a wind farm with $N$ turbines. At forecast origin $t$, the model observes the previous $L$ intervals and predicts the next $H$ intervals. Let
+\begin{align}
+\bm X_t &\in \R^{N\times L\times D}, &
+\bm M_t &\in \{0,1\}^{N\times L\times D}, \\
+\bm \Delta_t &\in \R_+^{N\times L\times D}, &
+\bm Y_t &\in \R^{N\times H},
+\end{align}
+where $\bm X_t$ contains numerical SCADA features, $\bm M_t$ marks whether each value is a valid observation, $\bm\Delta_t$ records elapsed time since the last valid observation, and $\bm Y_t$ contains future active power. The forecasting task is to estimate both a deterministic center $\hat{\bm Y}^{\rm det}_t$ and a conditional joint predictive distribution
+\begin{equation}
+p(\bm Y_t\mid \mathcal I_t),
+\end{equation}
+where $\mathcal I_t$ contains only information available no later than $t$ under the primary operational protocol.
+
+\subsection{Strict History-Only and Oracle-Weather Protocols}
+The primary protocol excludes any feature whose issue or availability time exceeds $t$. In particular, future ERA5 reanalysis in SDWPF-full is excluded from the primary input. For controlled analysis, an oracle-weather protocol may use ERA5 at $t+1{:}t+H$ and is explicitly labeled non-operational. A separate real-forecast experiment can use a data source with auditable forecast initialization times, such as the WIND Toolkit. This separation prevents a high-accuracy oracle from being conflated with an online forecast.
+
+\subsection{Wind-Side Risk Boundary}
+The output of the method is a set of wind-power trajectories and derived wind-side proxies. Without network topology, bus injections, dispatch schedules, reserve states, and dynamic grid models, the method does not claim to predict line overload, voltage collapse, system-frequency instability, or actual reserve insufficiency. The operational quantities studied here are turbine/farm power uncertainty, ramp probability, deviation probability, and scenario-based tail shortfall.
+
+\section{PR-Warn++ Methodology}
+\subsection{Time-Continuous, Mask-Aware Preprocessing}
+All turbines are first aligned to a rigid sampling grid. Invalid observations are never removed by deleting timestamps; instead, the timestamp is retained and the corresponding mask entry is set to zero. Numerical placeholders in $\tilde{\bm X}_t$ use last-observation carry-forward after training-set standardization, with a training-set median used before the first valid value. Because $\bm M_t$ and $\bm\Delta_t$ are passed to the model together with $\tilde{\bm X}_t$, a filled value is not presented as a fresh physical observation. Official dataset invalid/unknown rules take precedence over optional outlier detectors. All scalers, power curves, and statistical graphs are fitted using training data only.
+
+\subsection{Availability-Aware Empirical Power-Curve Anchor}
+Let $v_{i,t^\star}$ be the most recent valid turbine wind-speed observation with $t^\star\le t$. The strict history-only anchor uses
+\begin{equation}
+P^{\rm pc}_{i,t+h}=f_{\rm pc}(v_{i,t^\star}),\qquad h=1,\ldots,H,
+\label{eq:pcanchor}
+\end{equation}
+where $f_{\rm pc}$ is fitted on valid, normal-operation training samples using wind-speed bins followed by a shape-preserving interpolation and clipping to $[0,P_i^{\rm rated}]$. Equation \eqref{eq:pcanchor} is deliberately persistent across the short horizon: it is a weak physical/empirical reference, not a standalone wind-speed forecast. All horizon dynamics are delegated to the residual predictor. When pressure and temperature that are genuinely available by $t$ exist, the same procedure can be applied to density-equivalent wind speed
+\begin{equation}
+v^{\rm eq}=v\left(\rho/\rho_0\right)^{1/3},
+\end{equation}
+consistent with standard power-performance correction practice \cite{lee2020pcwg}. For SDWPF, density correction that depends on ERA5-derived pressure is reported only in the corresponding retrospective/oracle protocol unless an operational pressure source is supplied.
+
+\subsection{Dynamic Multi-Graph Residual Backbone}
+The deterministic backbone learns the physical/empirical residual
+\begin{equation}
+\bm R_t=\bm Y_t-\bm P^{\rm pc}_t.
+\label{eq:R}
+\end{equation}
+Four graph views are used. A geographic graph encodes static distance,
+\begin{equation}
+A^{\rm geo}_{ij}=\exp\left(-d_{ij}^2/\sigma_d^2\right),
+\end{equation}
+followed by top-$K_g$ sparsification. A statistical graph $\bm A^{\rm corr}$ is computed from first differences of training-set active power, reducing the influence of common level shifts. A directional graph uses the bearing $\beta_{ij}$ and the current farm/turbine wind direction $\theta_t$,
+\begin{equation}
+A^{\rm dir}_{ij}(t)=\exp(-d_{ij}/\lambda_d)\exp\left[-\frac{\Delta\theta_{ij}(t)^2}{2\sigma_\theta^2}\right]\1_{\rm downwind}(i,j,t),
+\label{eq:dir}
+\end{equation}
+which is interpreted only as a directional/advection prior. Finally, a learned adaptive graph follows node-embedding approaches \cite{wu2019graphwavenet,bai2020agcrn},
+\begin{equation}
+\bm A^{\rm adp}=\operatorname{softmax}\!\left(\operatorname{ReLU}(\bm E_1\bm E_2^\top)\right).
+\end{equation}
+A context gate produces nonnegative weights $\alpha_k(t)$ that sum to one,
+\begin{equation}
+\bm A_t=\sum_{k\in\{\rm geo,corr,dir,adp\}}\alpha_k(t)\bm A_t^{(k)},
+\end{equation}
+\begin{equation}
+\bm\alpha_t=\operatorname{softmax}\!\left(g_\theta\!\left(\operatorname{Pool}(\tilde{\bm X}_t,\bm M_t,\bm\Delta_t)\right)\right).
+\end{equation}
+
+For a graph signal $\bm Z$, define a $K$-order graph convolution as
+\begin{equation}
+\operatorname{GC}(\bm Z;\bm A_t)=\sum_{q=0}^{K}\tilde{\bm A}_t^{q}\bm Z\bm W_q,
+\end{equation}
+where $\tilde{\bm A}_t$ is normalized with self-loops. The linear transformations in a GRU cell are replaced by graph convolutions, producing a graph-recurrent state $\bm H_s$ over the $L$ historical steps. The final state is decoded to all horizons,
+\begin{equation}
+\hat{\bm R}_t=\operatorname{Dec}_R(\bm H_t)\in\R^{N\times H},\qquad
+\hat{\bm Y}^{\rm det}_t=\operatorname{clip}(\bm P^{\rm pc}_t+\hat{\bm R}_t,0,\bm P^{\rm rated}).
+\label{eq:ydet}
+\end{equation}
+The deterministic network is trained with a masked Huber loss over valid future targets. Hyperparameters such as graph sparsity, hidden width, and recurrent depth are selected on the validation period and will be reported in the final experimental configuration table.
+
+\subsection{Direct Conditional Flow Matching of Final Forecast Errors}
+The probabilistic target is intentionally different from \eqref{eq:R}. After the deterministic center has been trained, define the final forecast error field
+\begin{equation}
+\bm E_0=\bm Y_t-\hat{\bm Y}^{\rm det}_t\in\R^{N\times H}.
+\label{eq:E}
+\end{equation}
+Thus, $\bm R_t$ measures what the empirical power curve does not explain, whereas $\bm E_0$ measures what the complete deterministic predictor still gets wrong. Training residual statistics are used to standardize $\bm E_0$ per forecast horizon.
+
+For standard CFM, draw $\bm Z\sim\mathcal N(\bm 0,\bm I)$ independently and $\tau\sim\mathcal U(0,1)$, and define the linear conditional path
+\begin{equation}
+\bm E_\tau=(1-\tau)\bm E_0+\tau\bm Z.
+\end{equation}
+A velocity network $v_\phi$ is conditioned on the deterministic representation $\bm H_t$, the center prediction $\hat{\bm Y}^{\rm det}_t$, missingness summaries, the graph state, and $\tau$, all of which are available under the selected information protocol. It minimizes
+\begin{equation}
+\mathcal L_{\rm CFM}=\E\left[\left\|v_\phi(\bm E_\tau,\tau,\bm C_t)-(\bm Z-\bm E_0)\right\|_2^2\right].
+\label{eq:cfm}
+\end{equation}
+The velocity network uses residual spatio-temporal blocks that mix horizon-wise temporal convolutions, graph aggregation, and condition modulation. The exact depth/width is an experimental configuration, not part of the theoretical claim. Importantly, the primary model is called CFM, not OT-CFM: explicit minibatch optimal-transport or Sinkhorn coupling is required before the latter label is used.
+
+At inference, $M$ independent noise fields are integrated from $\tau=1$ to $0$ with a numerical ODE solver,
+\begin{equation}
+\bm E_{\tau-\Delta\tau}=\bm E_\tau-\Delta\tau\,v_\phi(\bm E_\tau,\tau,\bm C_t),
+\end{equation}
+then unstandardized and added to the deterministic center:
+\begin{equation}
+\bm Y_t^{(m)}=\operatorname{clip}\left(\hat{\bm Y}^{\rm det}_t+\bm E_0^{(m)},0,\bm P^{\rm rated}\right),\quad m=1,\ldots,M.
+\label{eq:scenarios}
+\end{equation}
+Solver steps and scenario count are evaluated explicitly because they control the quality--latency tradeoff.
+
+\subsection{Horizon-Wise Conformal Calibration}
+The scenario generator provides an empirical predictive distribution but no automatic finite-sample coverage guarantee. Let $L^{\rm raw}_{i,h}$ and $U^{\rm raw}_{i,h}$ denote the $\alpha/2$ and $1-\alpha/2$ empirical quantiles of the generated scenarios. On the independent chronological calibration set, define
+\begin{equation}
+s_{j,i,h}=\max\left\{L^{\rm raw}_{j,i,h}-Y_{j,i,h},\;Y_{j,i,h}-U^{\rm raw}_{j,i,h},\;0\right\}.
+\end{equation}
+For each horizon $h$, the conformal expansion $q_h$ is the finite-sample $(1-\alpha)$ quantile of scores pooled over calibration origins and turbines. The calibrated interval is
+\begin{equation}
+\mathcal C_{i,h}=\left[L^{\rm raw}_{i,h}-q_h,\;U^{\rm raw}_{i,h}+q_h\right].
+\label{eq:conformal}
+\end{equation}
+The primary claim is marginal per-horizon coverage over the population represented by the calibration protocol; it is not simultaneous coverage over all turbines and horizons. Adaptive conformal inference \cite{gibbs2021aci} and density-ratio-weighted conformal prediction \cite{tibshirani2019covshift} are evaluated as shift-aware extensions. Any context-neighbor or worst-subgroup fallback is reported as an empirical safety heuristic unless its weighting assumptions are explicitly verified.
+
+\subsection{Scenario-Derived Ramp and Tail-Risk Proxies}
+Let farm-level scenario power be
+\begin{equation}
+P_{t+h}^{(m)}=\sum_{i=1}^{N}Y_{i,t+h}^{(m)}.
+\end{equation}
+With ramp thresholds $\gamma_h^+$ and $\gamma_h^-$ defined in MW or as fractions of installed capacity per 10-min interval, the scenario probabilities are
+\begin{align}
+p_{\rm ramp}^{+}(h)&=\frac{1}{M}\sum_{m=1}^{M}\1\left[P_{t+h}^{(m)}-P_{t+h-1}^{(m)}>\gamma_h^+\right],\\
+p_{\rm ramp}^{-}(h)&=\frac{1}{M}\sum_{m=1}^{M}\1\left[P_{t+h-1}^{(m)}-P_{t+h}^{(m)}>\gamma_h^-\right].
+\end{align}
+A schedule-free downward shortfall proxy relative to the deterministic center is
+\begin{equation}
+L_h^{(m)}=\max\left(0,P_{t+h}^{\rm det}-P_{t+h}^{(m)}\right),
+\end{equation}
+and its tail severity is summarized by $\operatorname{CVaR}_\beta(L_h)$ \cite{rockafellar2002cvar}. If an operational schedule becomes available, $P^{\rm det}$ can be replaced by that schedule without changing the scenario model. These quantities are evaluated against observed ramp events and realized shortfalls; no synthetic Level-1--Level-4 security label is required.
+
+\subsection{Training and Inference Protocol}
+Training is staged to keep failure modes auditable: (i) construct the time grid, masks, scalers, and training-only power curve/graphs; (ii) train the deterministic residual backbone; (iii) freeze the chosen deterministic checkpoint and construct training error fields using \eqref{eq:E}; (iv) train the CFM velocity model; and (v) fit the conformal calibrator on a disjoint calibration period. Inference requires only preprocessing objects fitted on training data, the most recent history window, the deterministic backbone, the CFM generator, and the stored conformal calibration statistics. Measured parameter count, GPU memory, and end-to-end latency are intentionally left to the experimental section.
+
+\begin{figure*}[t]
+\centering
+\fbox{\parbox[c][2.30in][c]{0.965\textwidth}{\centering
+\textbf{FIG. 1 NARRATIVE-LOCKED INFORMATION ARCHITECTURE}\\[0.35em]
+\textbf{A. Availability boundary:} history SCADA + coordinates + optional issue-time weather $\rightarrow$ rigid grid $\rightarrow (\tilde{\bm X},\bm M,\bm\Delta)$; future ERA5 shown only as a gray oracle branch.\\[0.25em]
+$\boxed{\textbf{RQ1}}$ \textbf{B. Weak-physics residual center:} training-only $f_{pc}\rightarrow \bm P^{pc}$; $\{\bm A^{geo},\bm A^{corr},\bm A^{dir}(t),\bm A^{adp}\}\rightarrow$ gate $\rightarrow \bm A_t$; dashed target $\bm R=\bm Y-\bm P^{pc}$; residual predictor $\rightarrow \hat{\bm R}$; $\hat{\bm Y}^{det}=\operatorname{clip}(\bm P^{pc}+\hat{\bm R})$.\\[0.25em]
+$\boxed{\textbf{RQ2}}$ \textbf{C. Final-error CFM:} dashed training target $\bm E=\bm Y-\hat{\bm Y}^{det}$; inference $M$ Gaussian fields $\rightarrow K_{step}$-step ODE $\rightarrow \bm E^{(m)}\rightarrow \bm Y^{(m)}=\hat{\bm Y}^{det}+\bm E^{(m)}$. Core target ablation: generate $\bm Y$ vs. $\bm R$ vs. final $\bm E$.\\[0.25em]
+$\boxed{\textbf{RQ3}}$ \textbf{D. Three distinct outputs:} (D1) joint scenario fidelity [evaluation only: ES/VS]; (D2) marginal scenario quantiles $\rightarrow$ per-horizon split conformal interval [marginal coverage claim only]; (D3) $\sum_iY_i^{(m)}\rightarrow$ ramp/deviation probabilities and CVaR [event/tail reliability evaluated separately].\\[0.25em]
+Main shapes: $[B,N,L,D]\rightarrow[B,N,H]\rightarrow[M,B,N,H]\rightarrow[M,B,H]$. Solid = inference; dashed = training-only; dotted = calibration-only; gray = oracle/evaluation-only.}}
+\caption{Narrative-locked information architecture of PR-Warn++. The framework separates an availability-aware weak-physics deterministic center (RQ1), direct conditional flow matching of the joint final forecast-error field (RQ2), and three distinct reliability objects: joint scenario fidelity, marginal interval calibration, and event/tail-risk reliability (RQ3). Training labels enter only dashed target-construction paths, while future ERA5 is isolated as an oracle-weather branch. Continuous ramp, deviation, and CVaR outputs are wind-side operational proxies rather than line-flow, voltage, frequency, or reserve-security states.}
+\label{fig:overview}
+\end{figure*}
+
+\section{Experimental Validation Plan}
+\subsection{Datasets and Information Protocols}
+The primary benchmark is SDWPF-full \cite{zhou2024sdwpf}; its 134 turbines and 10-min resolution support turbine-array spatio-temporal evaluation. The main experiment will use the strict history-only protocol defined above. Future ERA5 is used only in a separately labeled oracle-weather study. The Kelmarsh open dataset \cite{plumley2025kelmarsh}, which contains six turbines, static turbine parameters, SCADA, and event data, is reserved for external validation and stronger-physics sensitivity studies. WIND Toolkit forecasts \cite{draxl2015windtoolkit} are reserved for forecast-issue-time/NWP uncertainty experiments.
+
+\TBD{Insert final chronological split boundaries after event-isolation audit. Current planning target: Train/Val/Calib/Test = 60/15/10/15 by time, with event windows kept intact.}
+
+\subsection{Hypothesis-Driven Validation}
+Experiments are organized around the three scientific questions rather than around isolated modules. For RQ1, the principal deterministic comparison holds the backbone capacity fixed while contrasting direct raw-power prediction with the proposed power-curve-referenced residual target; graph-view, missingness-encoding, anchor, and information-protocol ablations are then used to determine which supporting components are necessary. For RQ2, the decisive target ablation trains capacity-matched CFM models to generate raw future power $\bm Y$, the power-curve residual $\bm R=\bm Y-\bm P^{\rm pc}$, or the final error field $\bm E=\bm Y-\hat{\bm Y}^{\rm det}$. Energy Score is pre-specified as the primary joint-distribution endpoint, with Variogram Score, CRPS, ramp-probability Brier score, and sampling cost as key secondary endpoints. For RQ3, the same scenario set is evaluated separately for multivariate fidelity, marginal coverage, and event/tail reliability; split conformal modifies only the marginal interval claim and is not used as evidence that ramp-event probabilities are calibrated. Major comparisons are repeated across random seeds and assessed using paired time/event-block bootstrap confidence intervals; event-level metrics use event-block resampling to reduce pseudo-replication.
+
+\subsection{Baselines, Metrics, and Reproducibility}
+Deterministic baselines will include persistence, a non-graph sequence model, and representative graph forecasters such as AGCRN/Graph WaveNet-style models and recent wind-specific graph models where code and protocol can be reproduced fairly. Probabilistic baselines will include quantile/CQR, a copula or scenario post-processing baseline, CVAE/normalizing-flow where appropriate, and a diffusion baseline matched as closely as possible in conditioner width and input information. CFM solver steps will be ablated explicitly.
+
+Point metrics will include MAE/RMSE; probabilistic marginals will be assessed by CRPS, pinball loss, PICP, interval width, and Winkler score; joint scenarios will be assessed with energy and variogram scores \cite{gneiting2007proper,scheuerer2015variogram}; ramp events will be evaluated with Brier score, AUPRC, event F1, and reliability diagrams. All reported stochastic results will use \TBD{number of seeds} independent seeds with paired confidence intervals and \TBD{statistical test/bootstrap protocol}. Hardware and software versions will be reported in a configuration table generated from experiment logs rather than entered manually.
+
+\begin{table}[t]
+\centering
+\caption{Experimental Configuration Placeholder}
+\label{tab:config}
+\scriptsize
+\begin{tabular}{p{0.29\columnwidth}p{0.61\columnwidth}}
+\toprule
+Item & Final value to be filled from reproducible config/log \\
+\midrule
+History / horizon & \TBD{$L$, $H$} \\
+Train/Val/Cal/Test & \TBD{chronological boundaries} \\
+SCADA features & \TBD{final feature list and availability times} \\
+Power-curve fit & \TBD{bin/smoothing settings after sensitivity check} \\
+Graph parameters & \TBD{$K_g,\sigma_d,\lambda_d,\sigma_\theta$} \\
+Backbone & \TBD{layers, hidden width, dropout} \\
+CFM & \TBD{velocity blocks, solver, steps, scenarios} \\
+Optimization & \TBD{optimizer, LR, epochs, early stopping} \\
+Conformal & \TBD{$\alpha$, pooling rule, shift extensions} \\
+Hardware / software & \TBD{GPU, CUDA, PyTorch, runtime protocol} \\
+Seeds & \TBD{seed list} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Results and Discussion}
+\TBD{This entire section is intentionally reserved for experiment-derived statements. Do not insert assumed numbers. Planned subsections: (A) deterministic accuracy and extreme-regime error; (B) marginal and joint probabilistic forecasting; (C) ramp-event probability and calibration; (D) missingness/OOD stress tests; (E) ablations and sensitivity; (F) efficiency Pareto frontier; (G) external validation. Each quantitative statement must be traceable to a stored experiment ID and metrics file.}
+
+\section{Scope, Limitations, and Threats to Validity}
+Several limitations are defined before seeing the results. First, SDWPF future ERA5 constitutes retrospective reanalysis rather than an operational NWP issue stream; it therefore cannot support a claim about real NWP forecast uncertainty in the primary protocol \cite{zhou2024sdwpf}. Second, the empirical power curve is a weak reference model: it does not resolve turbine wakes or replace calibrated aeroelastic models. Its role is to remove a stable wind-speed--power trend so that the neural backbone can focus on residual dynamics. Third, standard split-conformal coverage relies on the selected calibration protocol, and shift-aware extensions introduce additional assumptions; empirical OOD fallback behavior will not be presented as a distribution-free conditional guarantee. Fourth, scenario-derived ramp and CVaR quantities are wind-side proxies. Without an explicit network and dispatch model they should not be interpreted as line-flow, voltage, frequency, or reserve-security probabilities. Finally, external datasets differ in turbine count, instrumentation, and weather availability; cross-dataset conclusions will therefore use normalized metrics and shared semantic features rather than pooling incomparable absolute errors.
+
+\section{Conclusion}
+This paper formulates PR-Warn++ as an availability-aware, power-curve-guided approach to turbine-array probabilistic forecasting. The framework separates an interpretable empirical center, dynamic multi-graph residual prediction, direct CFM of the remaining joint error field, horizon-wise calibration, and scenario-derived wind-side ramp/tail proxies. This decomposition is designed to make each modeling claim independently testable and to prevent future information, latent-space complexity, or calibration heuristics from being hidden inside a single end-to-end score. \TBD{After experiments, add a concise quantitative conclusion covering deterministic accuracy, joint probabilistic quality, calibration/ramp skill, sampling efficiency, external validation, and the one most important limitation revealed by the results.}
+
+\section*{Acknowledgment}
+\TBD{Funding, data-provider acknowledgment, and contributor statements. If AI-generated text from this drafting process is retained in the submitted manuscript, add the disclosure and citation required by the current IEEE PES author guidance.}
+
+\section*{Data and Code Availability}
+SDWPF, WIND Toolkit, and Kelmarsh are publicly available from their respective repositories \cite{zhou2024sdwpf,draxl2015windtoolkit,plumley2025kelmarsh}. \TBD{Provide repository URL/DOI for the exact processed splits, code release, environment lock file, and experiment manifests at submission.}
+
+\bibliographystyle{IEEEtran}
+\bibliography{PR-Warn++_TSTE_叙事冻结版_参考文献}
+
+\end{document}

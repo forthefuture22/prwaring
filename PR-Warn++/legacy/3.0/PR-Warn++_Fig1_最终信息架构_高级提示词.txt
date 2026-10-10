@@ -1,0 +1,57 @@
+You are a senior scientific-visualization designer familiar with IEEE Transactions on Sustainable Energy (TSTE), wind-farm SCADA forecasting, spatio-temporal graph learning, conditional flow matching, and conformal prediction. Design Fig. 1 for the PR-Warn++ manuscript as a restrained, publication-ready, vector-style, stage-first framework figure. Do not copy any existing paper's artwork, icons, colors, or exact layout. Borrow only the information-design principles common to recent TSTE/Applied Energy forecasting figures: clear macro-stages, limited colors, explicit training/inference separation, and readable tensor/data flow at two-column width.
+
+Scientific story to communicate: the figure must visually answer exactly three research questions, labeled RQ1, RQ2, and RQ3.
+RQ1: Can an availability-aware weak-physics residual center separate predictable wind-power structure from the remaining stochastic component under a strict forecast-origin information boundary?
+RQ2: After deterministic prediction, is the joint final forecast-error field E = Y - Y_det a better generative target than raw future power Y?
+RQ3: Why must joint scenario fidelity, marginal calibration, and event/tail-risk reliability be evaluated as distinct properties?
+
+Canvas and style:
+- Horizontal figure, approximately 16:7 aspect ratio, intended for an IEEE TSTE two-column-width figure.
+- White background, 3-4 low-saturation scientific colors, thin dark-gray strokes, no glossy 3D icons, no decorative gradients.
+- Use four macro-regions A-D from left to right. Place a small RQ1 badge above region B, RQ2 above C, RQ3 above D.
+- Solid arrows = inference-time / forecast-origin-available path.
+- Dashed arrows = training-only target construction.
+- Dotted arrows = calibration-only path.
+- Gray thin arrows/boxes = oracle or evaluation-only branches.
+- Add a compact legend.
+
+Region A — Availability-Aware Inputs and Time-Grid Reconstruction:
+Inputs: historical SCADA, turbine coordinates/static metadata, and optional issue-time weather forecasts. Show a strict vertical marker 'forecast origin t'. Processing: rigid 10-min temporal grid -> validity/state disentanglement -> X_fill, observation mask M, elapsed-time ΔT. Output shape [B,N,L,D]. A separate gray dashed branch labeled 'future ERA5 reanalysis: oracle-weather experiment only' must NOT enter the solid online path.
+
+Region B — Availability-Aware Weak-Physics Residual Center (RQ1):
+Top auxiliary block: 'training-only empirical power curve f_pc', fitted using valid training observations only. At inference use latest valid wind available by t to form a weak horizon anchor P_pc [B,N,H]; do not depict Jensen/Park as the universal baseline.
+Parallel graph views: A_geo (static geography), A_corr (training-set first-difference correlation), A_dir(t) (wind-direction/advection prior), A_adp (learned adaptive graph). A context gate outputs alpha_k(t), then fused A_t.
+Main block: mask-aware graph-recurrent residual predictor. Dashed training label branch from Y creates R = Y - P_pc, explicitly labeled 'deterministic residual target'. Predictor outputs R_hat [B,N,H]. Add P_pc + R_hat and clip to physical range -> Y_det [B,N,H]. Make the equation Y_det = clip(P_pc + R_hat) visually prominent.
+
+Region C — Direct Conditional Flow Matching of Final Forecast Errors (RQ2):
+Split this region into a small upper training lane and a larger lower inference lane.
+Training lane (dashed): future truth Y and frozen/chosen Y_det form E0 = Y - Y_det, explicitly labeled 'final forecast-error field'. Standardize E0. Draw Z ~ N(0,I), tau ~ U(0,1), interpolation E_tau = (1-tau)E0 + tau Z, conditional velocity field v_phi(E_tau,tau,C_t), and CFM velocity-regression loss. C_t is formed only from forecast-origin-available deterministic/context features.
+Inference lane (solid): M independent Gaussian error fields -> K_step-step ODE integration from tau=1 to 0 -> E^(1)...E^(M) [M,B,N,H] -> add the SAME Y_det -> coherent power scenarios Y^(m) [M,B,N,H].
+Add a small comparison badge under this region: 'core ablation: generate Y vs generate R vs generate final E'. Do not label the method OT-CFM unless explicit optimal-transport coupling exists. Do not include a VAE in the primary path.
+
+Region D — Three Distinct Reliability/Decision Outputs (RQ3):
+Immediately split the scenario stream into three visually separate branches:
+D1 Joint scenario fidelity: scenario distribution is evaluated with Energy Score / Variogram Score / dependence diagnostics. Mark this as evaluation-only, not an online transformation.
+D2 Marginal reliability: scenario marginal quantiles -> per-horizon split conformal calibration -> calibrated interval C_{i,h}. Label clearly: 'marginal coverage claim only'. Do NOT imply simultaneous multi-turbine coverage or event-probability calibration.
+D3 Operational event/tail branch: aggregate scenarios across turbines, P^(m) = sum_i Y_i^(m) [M,B,H] -> ramp-up/down probability, deviation probability, CVaR/shortfall. If post-hoc event-probability calibration is used, show it as an optional dotted calibration sub-block, separate from conformal intervals.
+Final output box: 'Wind-side operational proxies', not power-system security states. Include a small note: 'No claims on line flow, voltage stability, frequency stability, or reserve adequacy without a grid model.'
+
+Tensor annotations on main path:
+[B,N,L,D] -> P_pc/R_hat/Y_det [B,N,H] -> scenarios [M,B,N,H] -> farm scenarios [M,B,H].
+
+Visual hierarchy:
+- The most prominent conceptual contrast in the whole figure must be between R = Y - P_pc in region B and E = Y - Y_det in region C.
+- Make it visually impossible to confuse these two residuals.
+- The second strongest visual message is the three-way split in region D: joint scenario fidelity != marginal conformal calibration != event/tail-risk reliability.
+- Keep internal neural-layer detail abstract; Fig. 1 is a scientific information architecture, not a layer-by-layer circuit diagram.
+
+Self-check before finalizing:
+1. Does every solid-path variable exist at forecast origin t?
+2. Is future ERA5 isolated as oracle-only?
+3. Are R and E defined differently and placed in different stages?
+4. Does the generator learn final errors, not raw power in the main path?
+5. Is conformal calibration prevented from visually implying ramp-probability calibration?
+6. Are wind-side risk proxies clearly separated from true grid-security states?
+7. Can the figure still be read after reduction to IEEE two-column width?
+
+Output requirements: first provide a clean text wireframe, then create the final vector-style figure. Use short labels, mathematical notation, and an IEEE-style caption of 80-120 words.

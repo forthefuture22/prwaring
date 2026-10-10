@@ -20,3 +20,6 @@ Thumbs.db
 # 本地虚拟环境
 .venv/
 venv/
+
+# 内嵌仓库备份（仅本地保留）
+**/.git_backup/

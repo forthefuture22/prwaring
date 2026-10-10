@@ -1,0 +1,562 @@
+<html style="margin:0;padding:0;">
+<title>PR-Warn++ 顶刊文献调研与代码补全规范</title>
+<div style="width:100%;box-sizing:border-box;padding:24px;font-family:'Segoe UI','Microsoft YaHei',sans-serif;color:#1f2937;background:#f8fafc;">
+
+  <div style="max-width:1120px;margin:0 auto;">
+
+    <!-- 结论 -->
+    <div style="background:linear-gradient(135deg,#0f766e,#0d9488);border-radius:14px;padding:22px 26px;color:#fff;">
+      <div style="font-size:13px;letter-spacing:1px;opacity:.85;">LITERATURE &amp; IMPLEMENTATION SPEC · v1.0 · 2026-10-10</div>
+      <div style="font-size:24px;font-weight:700;margin-top:4px;">顶刊文献调研与代码补全规范：8 个缺口 × 26 条核验引用</div>
+      <div style="margin-top:10px;font-size:14px;line-height:1.7;opacity:.95;">
+        面向 IEEE TSTE 投稿。对照 <b>约束符合性核查报告</b>（C0–C6）的 8 个代码缺失项，逐缺口给出
+        顶刊/顶会文献依据（IEEE TSTE/TSG、Applied Energy、Renewable Energy、Energy、Wind Energy、NeurIPS/ICLR/ICML、统计方法经典刊）、
+        标准协议要素，以及映射到真实文件/函数/配置键的落地实现规范。<b>全部 26 条引用经独立第三方逐条交叉核验：24 VERIFIED · 2 DOUBTFUL（书目细节已修正） · 0 FAIL</b>。
+      </div>
+    </div>
+
+    <!-- 优先级总览 -->
+    <div style="margin-top:22px;">
+      <div style="font-size:16px;font-weight:700;margin-bottom:10px;">八缺口总览（优先级 + 落点 + 文献数）</div>
+      <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;font-size:13px;border:1px solid #e2e8f0;">
+        <thead>
+          <tr style="background:#f1f5f9;text-align:left;">
+            <th style="padding:9px 12px;width:46px;">#</th>
+            <th style="padding:9px 12px;">缺口</th>
+            <th style="padding:9px 12px;width:64px;text-align:center;">优先级</th>
+            <th style="padding:9px 12px;width:130px;">对照约束</th>
+            <th style="padding:9px 12px;">核心动作</th>
+            <th style="padding:9px 12px;width:180px;">主要落点文件</th>
+            <th style="padding:9px 12px;width:70px;text-align:center;">文献</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">1</td><td style="padding:8px 12px;">多数据集适配器（Kelmarsh/WIND Toolkit）</td><td style="padding:8px 12px;text-align:center;"><span style="background:#fee2e2;color:#b91c1c;border-radius:10px;padding:2px 8px;font-weight:700;">P0</span></td><td style="padding:8px 12px;">C0-1 / C3-1</td><td style="padding:8px 12px;color:#475569;">grid.py 质量码可插拔 + 新 CLI + 新 config</td><td style="padding:8px 12px;color:#475569;">data/grid.py · cli/preprocess_kelmarsh.py(新)</td><td style="padding:8px 12px;text-align:center;">4</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">2</td><td style="padding:8px 12px;">极端天气事件级评估</td><td style="padding:8px 12px;text-align:center;"><span style="background:#fee2e2;color:#b91c1c;border-radius:10px;padding:2px 8px;font-weight:700;">P0</span></td><td style="padding:8px 12px;">C1-1/2/3</td><td style="padding:8px 12px;color:#475569;">事件定义→episode 链接→事件级 extreme_rmse/mae/picp</td><td style="padding:8px 12px;color:#475569;">eval/event_definition.py(新) · cli/evaluate_events.py(新)</td><td style="padding:8px 12px;text-align:center;">3</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">3</td><td style="padding:8px 12px;">门控/融合机制干预实验</td><td style="padding:8px 12px;text-align:center;"><span style="background:#fee2e2;color:#b91c1c;border-radius:10px;padding:2px 8px;font-weight:700;">P0</span></td><td style="padding:8px 12px;">C2-6 / C2-1</td><td style="padding:8px 12px;color:#475569;">learned/uniform/frozen_mean/shuffled/parameter_matched 五模式</td><td style="padding:8px 12px;color:#475569;">models/backbone.py:_mix_graphs · matrix.py A12</td><td style="padding:8px 12px;text-align:center;">3</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">4</td><td style="padding:8px 12px;">参数敏感性 OFAT</td><td style="padding:8px 12px;text-align:center;"><span style="background:#fee2e2;color:#b91c1c;border-radius:10px;padding:2px 8px;font-weight:700;">P0</span></td><td style="padding:8px 12px;">C3-7</td><td style="padding:8px 12px;color:#475569;">七组参数逐组 OFAT，验证集评估 + 边界判定</td><td style="padding:8px 12px;color:#475569;">matrix.py S1–S7 · configs 新增 model.gate_hidden_dim</td><td style="padding:8px 12px;text-align:center;">2</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">5</td><td style="padding:8px 12px;">鲁棒性协议增强</td><td style="padding:8px 12px;text-align:center;"><span style="background:#fef3c7;color:#b45309;border-radius:10px;padding:2px 8px;font-weight:700;">P1</span></td><td style="padding:8px 12px;">C3-4</td><td style="padding:8px 12px;color:#475569;">加性高斯噪声(按训练SD) + 特征级/关键气象通道缺失</td><td style="padding:8px 12px;color:#475569;">data/stress.py · cli/evaluate_missing_stress.py · configs stress: 块</td><td style="padding:8px 12px;text-align:center;">2</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">6</td><td style="padding:8px 12px;">配对统计推断增强</td><td style="padding:8px 12px;text-align:center;"><span style="background:#fef3c7;color:#b45309;border-radius:10px;padding:2px 8px;font-weight:700;">P1</span></td><td style="padding:8px 12px;">C2-2</td><td style="padding:8px 12px;color:#475569;">效应量(d_z/Hedges g) + Holm 多重比较校正</td><td style="padding:8px 12px;color:#475569;">eval/statistics.py 新增三函数 · aggregate_seed_runs.py</td><td style="padding:8px 12px;text-align:center;">5</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">7</td><td style="padding:8px 12px;">计算成本测量（FLOPs/训练时间）</td><td style="padding:8px 12px;text-align:center;"><span style="background:#fef3c7;color:#b45309;border-radius:10px;padding:2px 8px;font-weight:700;">P1</span></td><td style="padding:8px 12px;">C3-6</td><td style="padding:8px 12px;color:#475569;">MACs 统计 + perf_counter 训练打点 + 环境元数据</td><td style="padding:8px 12px;color:#475569;">cli/benchmark_inference.py · cli/train_deterministic.py · configs benchmark: 段</td><td style="padding:8px 12px;text-align:center;">3</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:8px 12px;font-weight:700;">8</td><td style="padding:8px 12px;">SOTA 对比基线补充</td><td style="padding:8px 12px;text-align:center;"><span style="background:#e0e7ff;color:#3730a3;border-radius:10px;padding:2px 8px;font-weight:700;">P2</span></td><td style="padding:8px 12px;">C5-5</td><td style="padding:8px 12px;color:#475569;">Transformer/PatchTST/iTransformer（+XGBoost 可选）</td><td style="padding:8px 12px;color:#475569;">models/deterministic_baselines.py · matrix.py B10–B13 · configs model 段</td><td style="padding:8px 12px;text-align:center;">4</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:8px;font-size:12px;color:#64748b;">
+        优先级：<span style="background:#fee2e2;color:#b91c1c;border-radius:10px;padding:1px 6px;">P0</span> 实验设计硬缺口（不补则投稿被批）｜
+        <span style="background:#fef3c7;color:#b45309;border-radius:10px;padding:1px 6px;">P1</span> 配置与增强（改动小）｜
+        <span style="background:#e0e7ff;color:#3730a3;border-radius:10px;padding:1px 6px;">P2</span> 记录与写作支持。
+        每缺口结构：①缺口定位（现状/缺口/为什么）→ ②文献依据表 → ③标准做法要点 → ④实现规范（真实落点+新增键默认值）→ ⑤验收自检清单 → ⑥引用来源。
+      </div>
+    </div>
+
+    <!-- 缺口 1 -->
+    <div style="margin-top:26px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 22px;">
+      <div style="font-size:16px;font-weight:700;border-left:4px solid #0d9488;padding-left:10px;">缺口 1：多数据集适配器（Kelmarsh / WIND Toolkit 跨风场同协议）<span style="float:right;font-size:12px;background:#fee2e2;color:#b91c1c;border-radius:10px;padding:2px 8px;">P0 · C0-1 / C3-1</span></div>
+      <div style="font-size:13px;color:#475569;margin-top:10px;line-height:1.7;">
+        <b>现状：</b>全库唯一预处理入口 <code>cli/preprocess_sdwpf.py main():49–307</code>，列名/单位已参数化（--timestamp-col 等），但数据质量码层硬编码 SDWPF：
+        <code>data/grid.py build_sdwpf_bundle():132</code> 固定调用 <code>sdwpf_reason_codes():67–111</code>（pitch&gt;89、Ndir∉[-720,720] 等异常区间，对 Kelmarsh 不成立）。
+        <code>docs/PR-Warn++_v3.2_代码使用说明.md:154</code> 明确标注 Kelmarsh「需先编写数据适配器」。下游契约已数据集无关（<code>data/processed.py:12 REQUIRED_ARRAYS</code>、<code>data/split.py:14 chronological_split</code>、<code>data/window.py:8 make_windows</code>、<code>data/torch_dataset.py:19</code>）。
+        <b>缺口：</b>缺把 Kelmarsh 原生 SCADA 表翻译成同一 rigid-grid→bundle→window→npz 契约的适配器，且质量码策略可插拔。<b>P0 理由：</b>单风场不足以支撑「空间图/方向图/物理先验可迁移」claim；Kelmarsh 为 10 min、6 台真实机组、CC-BY-4.0 公开数据，是与 SDWPF 同协议对比成本最低的外部验证集。
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">② 文献依据表</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+        <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:7px 10px;">文献（作者-年份）</th><th style="padding:7px 10px;">出处/年份</th><th style="padding:7px 10px;">DOI/arXiv</th><th style="padding:7px 10px;">关键做法</th><th style="padding:7px 10px;">可借鉴协议要素</th></tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Zhou–Lu–Xiao et al. 2024</td><td style="padding:7px 10px;">Scientific Data 11:649</td><td style="padding:7px 10px;"><a href="https://arxiv.org/abs/2208.04360">arXiv:2208.04360</a></td><td style="padding:7px 10px;">SDWPF 数据集论文：显式区分发布自带字段与作者处理字段，给出评估设置</td><td style="padding:7px 10px;">metadata 区分 published_columns vs derived_columns；license/sha256 入产物</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Draxl–Clifton–Hodge–McCaa 2015</td><td style="padding:7px 10px;">Applied Energy 151:355–366</td><td style="padding:7px 10px;"><a href="https://doi.org/10.1016/j.apenergy.2015.03.121">10.1016/j.apenergy.2015.03.121</a></td><td style="padding:7px 10px;">WIND Toolkit：格点 NWP（风速/风向/温度/气压/空气密度）公开数据源</td><td style="padding:7px 10px;">第三数据集候选：经 --density-correction 等效风速物理管线接入；字段与现有 Sp/T2m 契约一致</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Godahewa–Bergmeir–Webb–Hyndman–Montero-Manso 2021</td><td style="padding:7px 10px;">NeurIPS 2021 D&amp;B（arXiv:2105.06643）</td><td style="padding:7px 10px;"><a href="https://arxiv.org/abs/2105.06643">arXiv:2105.06643</a></td><td style="padding:7px 10px;">跨 20 个异构数据集用同一套 baseline 与同一套误差指标评测，按数据集分别报告</td><td style="padding:7px 10px;">跨数据集必须同一 split/窗口/输入契约/指标口径/多 seed；按数据集分行，不跨池平均</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Plumley 2022</td><td style="padding:7px 10px;">Zenodo（Kelmarsh 数据）</td><td style="padding:7px 10px;"><a href="https://doi.org/10.5281/zenodo.5841833">10.5281/zenodo.5841833</a>（概念 DOI）</td><td style="padding:7px 10px;">6 台 Senvion MM92、10 min、2016-01–2021-07、CC-BY-4.0；每变量含 mean/min/max/std</td><td style="padding:7px 10px;">适配器需处理「每变量多统计量」宽表；无 nacelle 角/pitch，方向走 global 模式；license/指纹入产物</td></tr>
+        </tbody>
+      </table>
+      <div style="font-size:12px;color:#64748b;margin-top:4px;">※ 核验注记：Kelmarsh 当前 record 10.5281/zenodo.16807551 为 2025-08 的 v4 版（数据到 2024）；表中按 2022 原版 v0.0.3 引用（概念 DOI 10.5281/zenodo.5841833），投稿引用请固定其一并核对版本。</div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">③ 标准做法要点</div>
+      <div style="font-size:13px;line-height:1.8;margin-top:4px;">
+        1. <b>同一契约、差异化输入映射</b>：差异只在「原生列名→契约列名」与质量码策略（Godahewa 2021）。<br>
+        2. <b>区分发布字段与作者派生字段</b>，冻结 train 拟合的 scaler/功率曲线（Zhou 2024）。<br>
+        3. <b>质量码随数据集策略化</b>，不套用他站规则（Zhou 2024；Draxl 2015）。<br>
+        4. <b>license 与可复现指纹（SHA-256）入产物</b>（Plumley 2022；复用 preprocess_sdwpf.py:25 _sha256）。<br>
+        5. <b>分辨率对齐才复用窗口参数</b>：Kelmarsh 同为 10 min 可直接沿用 history=24/forecast=6；WIND Toolkit 需显式改 resolution_minutes，不静默重采样（Draxl 2015）。
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">④ 实现规范（真实落点）</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px;border:1px solid #e2e8f0;">
+        <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:7px 10px;">改动点</th><th style="padding:7px 10px;">落点文件/函数/配置键</th><th style="padding:7px 10px;">新增参数与默认值</th><th style="padding:7px 10px;">验收方式</th></tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">质量码策略可插拔</td><td style="padding:7px 10px;">data/grid.py build_sdwpf_bundle():132</td><td style="padding:7px 10px;">新增 reason_code_fn=None（回落现有 sdwpf_reason_codes）；新增 generic_scada_reason_codes(speed_max=25.0)</td><td style="padding:7px 10px;">Kelmarsh 风格宽表产出 mask/delta_t 形状与 SDWPF 路径一致；不含 pitch/Ndir 规则</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Kelmarsh 预处理 CLI</td><td style="padding:7px 10px;">新建 cli/preprocess_kelmarsh.py（复用 build_rigid_grid/chronological_split/build_sdwpf_bundle/make_windows）</td><td style="padding:7px 10px;">--timestamp-col "Date/Time"、--turbine-col "WTG"、--target-col "Active Power"、--wind-speed-col "Wind Speed"、--wind-direction-mode global、--density-correction False、--rated-power ≈12.3MW</td><td style="padding:7px 10px;">产出 train/val/calib/test.npz + metadata.json + a_corr.npy；load_processed_split validate() 通过</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">metadata 数据集身份</td><td style="padding:7px 10px;">preprocess_sdwpf.py metadata dict（:259–303）</td><td style="padding:7px 10px;">新增 dataset_name/dataset_license/dataset_origin_url/published_columns/derived_columns</td><td style="padding:7px 10px;">json 可解析且两列清单不相交；input_sha256 保留</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Kelmarsh 独立配置</td><td style="padding:7px 10px;">新建 configs/kelmarsh_v1.yaml（仿 sdwpf_v3_2.yaml）</td><td style="padding:7px 10px;">data.dataset: kelmarsh_v1；data.reason_code_strategy: generic_scada；data.wind_direction_mode: global；data.dataset_license: CC-BY-4.0；split 同 0.60/0.15/0.10/0.15</td><td style="padding:7px 10px;">与主 config 的 split/history/forecast 一致（同协议证据）</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">（候选）WIND Toolkit 接入</td><td style="padding:7px 10px;">复用 preprocess_sdwpf.py 列契约</td><td style="padding:7px 10px;">--pressure-unit hpa --temperature-unit celsius --density-correction</td><td style="padding:7px 10px;">后续 P1 选项；本缺口优先 Kelmarsh</td></tr>
+        </tbody>
+      </table>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">⑤ 验收自检清单</div>
+      <div style="font-size:13px;line-height:1.8;margin-top:4px;">
+        ☐ preprocess_kelmarsh 退出码 0，产物目录含 4 个 npz + metadata.json + a_corr.npy<br>
+        ☐ ProcessedSplit.validate() 通过（11 个 REQUIRED_ARRAYS，x 为 [sample,node,history,feature]）<br>
+        ☐ metadata.json 含 dataset_name/license/origin_url/input_sha256/feature_scaler.fit_split=="train"/published_columns/derived_columns<br>
+        ☐ Kelmarsh 路径不含 SDWPF 专属异常规则；UNKNOWN 占比可打印<br>
+        ☐ 切分边界不跨窗口（window.py:27 final_origin 事实在 Kelmarsh npz 上成立）<br>
+        ☐ kelmarsh_v1.yaml 与 sdwpf_v3_2.yaml 的 data.split/history_steps/forecast_steps 一致
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">⑥ 引用来源</div>
+      <div style="font-size:12.5px;line-height:1.9;margin-top:4px;">
+        1. Zhou, J. et al. SDWPF: A Dataset for Spatial Dynamic Wind Power Forecasting over a Large Turbine Array. <i>Scientific Data</i> 11:649, 2024. <a href="https://arxiv.org/abs/2208.04360">arXiv:2208.04360</a><br>
+        2. Draxl, C., Clifton, A., Hodge, B.-M., McCaa, J. The Wind Integration National Dataset (WIND) Toolkit. <i>Applied Energy</i> 151:355–366, 2015. <a href="https://doi.org/10.1016/j.apenergy.2015.03.121">DOI: 10.1016/j.apenergy.2015.03.121</a> · <a href="https://www.osti.gov/biblio/1250028">OSTI 1250028</a><br>
+        3. Godahewa, R.W., Bergmeir, C., Webb, G.I., Hyndman, R.J., Montero-Manso, P. Monash Time Series Forecasting Archive. <i>NeurIPS 2021 D&amp;B</i>. <a href="https://arxiv.org/abs/2105.06643">arXiv:2105.06643</a><br>
+        4. Plumley, C. Kelmarsh Wind Farm Data (v0.0.3). <i>Zenodo</i>, 2022. <a href="https://doi.org/10.5281/zenodo.5841833">概念 DOI: 10.5281/zenodo.5841833</a> · 2022 原版 record <a href="https://zenodo.org/record/5841834">5841834</a>（当前最新 v4 为 <a href="https://zenodo.org/records/16807551">16807551</a>, 2025-08）
+      </div>
+    </div>
+
+    <!-- 缺口 2 -->
+    <div style="margin-top:22px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 22px;">
+      <div style="font-size:16px;font-weight:700;border-left:4px solid #0d9488;padding-left:10px;">缺口 2：极端天气/极端事件级评估（事件定义→窗口链接→事件级指标）<span style="float:right;font-size:12px;background:#fee2e2;color:#b91c1c;border-radius:10px;padding:2px 8px;">P0 · C1-1/2/3</span></div>
+      <div style="font-size:13px;color:#475569;margin-top:10px;line-height:1.7;">
+        <b>现状：</b>matrix.py 已声明 <code>extreme_rmse/extreme_mae/extreme_picp</code>（A0:31、A1:40、A8:105）、<code>ramp_f1</code>、<code>ramp_metrics</code>（A11:142），但 src 无任何事件级指标实现。
+        <code>evaluate_missing_stress.py:39 _train_extreme_threshold</code>（:47–58）是唯一 train-only 阈值函数，只做风速分位数、只服务极端缺失压力，不产出事件级指标。
+        <code>evaluate.py:46 _ramp_metrics</code> 给出的是爬坡「概率/检测」指标（brier/auprc/event_f1），不是「事件期间条件误差」。
+        可复用原语已存在：<code>statistics.py:139 contiguous_event_ids</code>、<code>:94 event_bootstrap_ci</code>、<code>risk/proxies.py:68 observed_ramp_event</code>、<code>evaluate.py:332–340</code> 产出的 calibrated_test.h5（lower/upper/y_farm/origin_time）。
+        <b>缺口：</b>完整链路——train 拟合并冻结多变量极端阈值（风速分位数 + 爬坡幅度×额定容量）→ 逐时间步事件真值 + episode 链接 → 事件级 extreme_rmse/mae/picp + 聚类 CI + 事件表。<b>P0 理由：</b>标题/摘要主打 extreme weather，审稿人要求事件级独立证据；全量平均会被事件内外误差稀释。
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">② 文献依据表</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px;border:1px solid #e2e8f0;">
+        <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:7px 10px;">文献（作者-年份）</th><th style="padding:7px 10px;">出处/年份</th><th style="padding:7px 10px;">DOI/arXiv</th><th style="padding:7px 10px;">关键做法</th><th style="padding:7px 10px;">可借鉴协议要素</th></tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Valldecabres, von Bremen &amp; Kühn 2020</td><td style="padding:7px 10px;">Wind Energy 23:2202–2224</td><td style="padding:7px 10px;"><a href="https://doi.org/10.1002/we.2553">10.1002/we.2553</a></td><td style="padding:7px 10px;">爬坡事件由起始时间 ts/时长 Δt/幅度 ΔP 三参数化；阈值以额定容量百分比表示（10%–75%，5 min–6 h）；事件按 up/down 分类并计数成表；在观测到的事件期间单独评估密度预测</td><td style="padding:7px 10px;">阈值=额定容量百分比（与现有 ramp_threshold_fractions×farm_capacity 一致）；事件计数成表；事件期间单独评估概率预测</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Cui–Feng–Wang–Zhang 2018</td><td style="padding:7px 10px;">IEEE TSTE 9(1):261–272</td><td style="padding:7px 10px;"><a href="https://doi.org/10.1109/TSTE.2017.2727321">10.1109/TSTE.2017.2727321</a></td><td style="padding:7px 10px;">爬坡抽取为幅度/时长/变化率/起始时间/方向五维特征，GGMM 刻画非高斯多峰分布</td><td style="padding:7px 10px;">事件表列：幅度/时长/方向；极端段厚尾，事件级误差不假设正态</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Cui–Zhang–Feng–Florita–Sun–Hodge 2017</td><td style="padding:7px 10px;">Renewable Energy 111:227–244</td><td style="padding:7px 10px;"><a href="https://doi.org/10.1016/j.renene.2017.04.005">10.1016/j.renene.2017.04.005</a></td><td style="padding:7px 10px;">在风/光/负荷/净负荷统一刻画 ramp 事件，跨序列报告事件发生率与特征分布</td><td style="padding:7px 10px;">跨数据集同一事件定义口径；事件计数/发生率与全量结果并列报告</td></tr>
+        </tbody>
+      </table>
+      <div style="font-size:12px;color:#64748b;margin-top:4px;">※ 未找到可核验的「事件内 PICP」专文，事件内 PICP 在现有 interval_metrics 上加 in_event 掩码实现，不引用未核验文献（宁缺毋滥）。</div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">③ 标准做法要点</div>
+      <div style="font-size:13px;line-height:1.8;margin-top:4px;">
+        1. <b>阈值双轨 + train-only 冻结</b>：爬坡幅度用 ramp_fraction×farm_rated_capacity（Valldecabres 2020 的 10%–75% 区间内）；高风速/温度用 train 分布分位数（沿用 _train_extreme_threshold 做法）；阈值数值与分位数写入 artifact（C1-2）。<br>
+        2. <b>事件=连续 episode，窗口链接而非逐点</b>：observed_ramp_event + contiguous_event_ids(maximum_gap) 链接（Cui 2018；复用已有原语）。<br>
+        3. <b>事件级指标只在「预测视野落入事件 episode」的 origin 上计算</b>，与全量分离（Valldecabres 2020）。<br>
+        4. <b>事件级 CI 按 episode 聚类 bootstrap</b>，不按逐点（事件内样本时间相关）（Cui 2017；C1-3）。<br>
+        5. <b>事件表与计数单独成表</b>：每 episode 的 start/end/direction/max_magnitude/duration + 链接窗口数/episode 数/有效 origin 数（C1-3；Valldecabres Table 2 惯例）。
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">④ 实现规范（真实落点）</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px;border:1px solid #e2e8f0;">
+        <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:7px 10px;">改动点</th><th style="padding:7px 10px;">落点文件/函数/配置键</th><th style="padding:7px 10px;">新增参数与默认值</th><th style="padding:7px 10px;">验收方式</th></tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">train-only 多变量极端阈值</td><td style="padding:7px 10px;">新建 eval/event_definition.py：fit_extreme_thresholds(train, metadata, ...)</td><td style="padding:7px 10px;">wind_quantile=0.95、temperature_quantile=0.95；复用 evaluate_missing_stress.py:47–58 反标准化逻辑</td><td style="padding:7px 10px;">单测：与手算分位数一致；函数拒绝 test split</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">事件真值 + episode 链接</td><td style="padding:7px 10px;">eval/event_definition.py：link_event_episodes(...)</td><td style="padding:7px 10px;">内部调 observed_ramp_event（proxies.py:68）+ contiguous_event_ids（statistics.py:139，maximum_gap=link_max_gap_steps×resolution）</td><td style="padding:7px 10px;">已知 ramp 段链接出正确 episode 数；非事件位为 -1</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">事件级指标 CLI</td><td style="padding:7px 10px;">新建 cli/evaluate_events.py（读 calibrated_test.h5 + scenarios_test.h5）</td><td style="padding:7px 10px;">--wind-quantile 0.95、--link-max-gap-steps 1、--bootstrap-n 2000、--bootstrap-seed 0</td><td style="padding:7px 10px;">产出 events_metrics.json：extreme_rmse/mae/picp + bootstrap CI + 事件表 + 计数</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">配置键</td><td style="padding:7px 10px;">configs/sdwpf_v3_2.yaml 新增 event: 段（紧邻 risk:）</td><td style="padding:7px 10px;">event.wind_quantile: 0.95、event.temperature_quantile: 0.95、event.link_max_gap_steps: 1、event.bootstrap_n: 2000</td><td style="padding:7px 10px;">与 risk.ramp_threshold_fractions/ramp_durations_steps 协同，不重复定义</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">matrix.py 指标接线</td><td style="padding:7px 10px;">experiments/matrix.py（声明已存在，不改名）</td><td style="padding:7px 10px;">输出 key 名严格对齐 extreme_rmse/extreme_mae/extreme_picp</td><td style="padding:7px 10px;">aggregate_seed_metrics 能按同名 key 跨 seed 聚合</td></tr>
+        </tbody>
+      </table>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">⑤ 验收自检清单</div>
+      <div style="font-size:13px;line-height:1.8;margin-top:4px;">
+        ☐ events_metrics.json 含 thresholds 段（数值+分位数），仅由 train/metadata 反标准化得到<br>
+        ☐ 含 event_table（event_id/start/end/direction/max_magnitude_pct/duration_steps）与 event_counts（episodes/linked_windows/in_event_origins/overall_origins）<br>
+        ☐ 含 extreme_rmse/mae/picp（bootstrap_ci + n_events），与 overall 并列；子集过小时给 null 并注明<br>
+        ☐ in_event 仅在 test 的 origin 上判定（不跨 split）<br>
+        ☐ extreme_picp 用 calibrated_test.h5 已冻结的 lower/upper，不在事件子集重新 conformal
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">⑥ 引用来源</div>
+      <div style="font-size:12.5px;line-height:1.9;margin-top:4px;">
+        1. Valldecabres, L., von Bremen, L., Kühn, M. Minute-scale detection and probabilistic prediction of offshore wind turbine power ramps using dual-Doppler radar. <i>Wind Energy</i> 23:2202–2224, 2020. <a href="https://doi.org/10.1002/we.2553">DOI: 10.1002/we.2553</a><br>
+        2. Cui, M., Feng, C., Wang, Z., Zhang, J. Statistical Representation of Wind Power Ramps Using a Generalized Gaussian Mixture Model. <i>IEEE TSTE</i> 9(1):261–272, 2018. <a href="https://doi.org/10.1109/TSTE.2017.2727321">DOI: 10.1109/TSTE.2017.2727321</a><br>
+        3. Cui, M., Zhang, J., Feng, C., Florita, A.R., Sun, Y., Hodge, B.-M. Characterizing and analyzing ramping events in wind power, solar power, load, and netload. <i>Renewable Energy</i> 111:227–244, 2017. <a href="https://doi.org/10.1016/j.renene.2017.04.005">DOI: 10.1016/j.renene.2017.04.005</a>
+      </div>
+    </div>
+
+    <!-- 缺口 3 -->
+    <div style="margin-top:22px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 22px;">
+      <div style="font-size:16px;font-weight:700;border-left:4px solid #0d9488;padding-left:10px;">缺口 3：门控/融合机制干预实验协议<span style="float:right;font-size:12px;background:#fee2e2;color:#b91c1c;border-radius:10px;padding:2px 8px;">P0 · C2-6 / C2-1</span></div>
+      <div style="font-size:13px;color:#475569;margin-top:10px;line-height:1.7;">
+        <b>现状：</b>多图融合由学习式 gate 加权 4 张图：<code>backbone.py:147–151</code> <code>self.gate = nn.Sequential(Linear(hidden_dim,hidden_dim), GELU, Linear(hidden_dim, n_static+2))</code>；<code>:170 _mix_graphs</code>；<code>:180 logits = self.gate(hidden.mean(dim=1))</code>；<code>:181–182</code> enabled_graph_mask 屏蔽 + softmax；<code>:24 mix_graphs_from_weights</code>。
+        A2 消融（matrix.py:46–59）只做图叠加（graphs.enabled），无任何 gate 行为开关；configs graphs 段（:33–43）无 gate 开关键。
+        <b>缺口：</b>C2-6 要求的四类对照 frozen/uniform/shuffled/parameter-matched 全部缺失；无法区分「动态输入相关门控」与「静态固定权重」，也无法排除「gate 只是额外参数容量」的混淆。<b>P0 理由：</b>动态多图融合是核心卖点，无干预对照则 claim 不被证据支持（EPSR 被拒教训 R1.3）；C2-4 要求机制解释有界，干预实验正是把 claim 收敛到证据支持程度的工具。
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">② 文献依据表</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px;border:1px solid #e2e8f0;">
+        <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:7px 10px;">文献（作者-年份）</th><th style="padding:7px 10px;">出处/年份</th><th style="padding:7px 10px;">DOI/arXiv</th><th style="padding:7px 10px;">关键做法</th><th style="padding:7px 10px;">可借鉴协议要素</th></tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Jain &amp; Wallace 2019</td><td style="padding:7px 10px;">NAACL-HLT 2019, pp.3543–3556</td><td style="padding:7px 10px;"><a href="https://aclanthology.org/N19-1357/">10.18653/v1/N19-1357</a> · <a href="https://arxiv.org/abs/1902.10186">arXiv:1902.10186</a></td><td style="padding:7px 10px;">学习到的 attention 权重常与梯度特征重要性不相关；存在与学习分布差异很大却给出等价预测的替代分布（权重替换/扰动实验）</td><td style="padding:7px 10px;">「权重替换后性能是否下降」是模块必要性的直接干预；支撑 shuffled 对照的设计与解读</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Wiegreffe &amp; Pinter 2019</td><td style="padding:7px 10px;">EMNLP-IJCNLP 2019, pp.11–20</td><td style="padding:7px 10px;"><a href="https://aclanthology.org/D19-1002/">10.18653/v1/D19-1002</a> · <a href="https://arxiv.org/abs/1908.04626">arXiv:1908.04626</a></td><td style="padding:7px 10px;">针对上一篇提出四类诊断测试：uniform-weights baseline、跨随机种子方差校准、冻结权重喂给非上下文 MLP、对抗式 attention 训练</td><td style="padding:7px 10px;">uniform 对照直接对应本文 uniform 模式；frozen 对照对应 frozen_mean 与「静态 vs 动态」区分；隔离模块思路对应 parameter-matched</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Michel, Levy &amp; Neubig 2019</td><td style="padding:7px 10px;">NeurIPS 2019</td><td style="padding:7px 10px;"><a href="https://arxiv.org/abs/1905.10650">arXiv:1905.10650</a></td><td style="padding:7px 10px;">对每个 attention head 做移除/掩码干预，用 loss 对 mask 的梯度×gate 值定义重要性，测量移除后性能下降；多数 head 可移除不掉点</td><td style="padding:7px 10px;">「移除/掩码模块→测性能下降」是必要性检验标准范式；重要性须在受控容量下解读（支撑 parameter-matched）</td></tr>
+        </tbody>
+      </table>
+      <div style="font-size:12px;color:#64748b;margin-top:4px;">※ 未强行凑 Energy/Applied Energy 融合消融论文（二手摘要无法逐字核验，宁缺毋滥）。</div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">③ 标准做法要点</div>
+      <div style="font-size:13px;line-height:1.8;margin-top:4px;">
+        1. <b>四类对照成套出现</b>：uniform（均匀权重）/ frozen（固定为验证集均值静态权重）/ shuffled（固定种子打乱 batch 对应）/ parameter-matched（参数量相同但无学习式门控）（Wiegreffe &amp; Pinter 2019）。<br>
+        2. <b>uniform 是零假设基线</b>：4 图等权混合（1/K），检验非均匀加权是否必要。<br>
+        3. <b>frozen 是「静态 vs 动态」关键对照</b>：常数权重向量=验证集上对 learned gate 输出求平均；与 learned 之差即动态输入相关门控的净贡献。<br>
+        4. <b>shuffled 检验「输入→权重」映射是否被因果使用</b>：保持边缘分布、仅打破样本对应；若性能几乎不变则该映射未被因果利用（Jain &amp; Wallace 2019；Michel 2019）。<br>
+        5. <b>parameter-matched 排除参数容量混淆</b>：保留 gate MLP 参数量但输出固定分布并阻断梯度（Wiegreffe &amp; Pinter 2019；Michel 2019）。<br>
+        6. <b>分两类执行</b>：uniform/parameter_matched 可从头训练（进矩阵）；frozen_mean/shuffled 是已训练 checkpoint 上的后验推理干预（独立 CLI，只读验证集）。<br>
+        7. <b>附带门控权重统计量</b>：各图权重均值/标准差/跨样本方差（backbone.py:244 已输出 graph_weights）。<br>
+        8. <b>结论措辞有界</b>：只声称「动态门控相对对照的改善」，不声称 gate 编码尾流/因果物理（C2-4）。
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">④ 实现规范（真实落点）</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px;border:1px solid #e2e8f0;">
+        <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:7px 10px;">改动点</th><th style="padding:7px 10px;">落点文件/函数/配置键</th><th style="padding:7px 10px;">新增参数与默认值</th><th style="padding:7px 10px;">验收方式</th></tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">gate 行为开关</td><td style="padding:7px 10px;">configs/sdwpf_v3_2.yaml 新增 graphs.gate_mode；backbone.py _mix_graphs(:170–186) 消费</td><td style="padding:7px 10px;">graphs.gate_mode: learned（枚举 learned/uniform/frozen_mean/shuffled/parameter_matched）</td><td style="padding:7px 10px;">learned 时行为与现状逐位一致；五种 mode 输出 shape 均为 (B,N,N)</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">uniform 模式</td><td style="padding:7px 10px;">同开关</td><td style="padding:7px 10px;">无额外键</td><td style="padding:7px 10px;">graph_weights 每行在启用图上严格相等</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">frozen_mean 模式</td><td style="padding:7px 10px;">同开关 + 缓存键 graphs.gate_frozen_weights</td><td style="padding:7px 10px;">graphs.gate_frozen_weights: null（后验脚本在验证集上对 learned gate 求均值填充）</td><td style="padding:7px 10px;">向量只在验证集拟合；frozen_mean 下 graph_weights 跨样本相同</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">shuffled 模式</td><td style="padding:7px 10px;">同开关 + 种子键</td><td style="padding:7px 10px;">graphs.shuffle_seed: 2025</td><td style="padding:7px 10px;">逐图边缘均值与 learned 一致；样本对应被破坏；不重训</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">parameter_matched 模式</td><td style="padding:7px 10px;">同开关</td><td style="padding:7px 10px;">无额外键（复用 gate MLP 结构）</td><td style="padding:7px 10px;">sum(p.numel()) 与 learned 完全相等；gate 参数 requires_grad=False</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">模型构造新键</td><td style="padding:7px 10px;">backbone.py DynamicMultiGraphResidualForecaster.__init__(:87–105)</td><td style="padding:7px 10px;">gate_mode="learned"、gate_frozen_weights=None、shuffle_seed=2025</td><td style="padding:7px 10px;">单元级：固定输入+固定权重下五模式输出可独立复算</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">实验矩阵</td><td style="padding:7px 10px;">experiments/matrix.py 新增 A12（group=ablation，接 A11 后）</td><td style="padding:7px 10px;">variants 复用 (variant, overrides)；frozen_mean/shuffled 标注后验干预</td><td style="padding:7px 10px;">build_experiment_matrix() 展开 A12 run contract；evidence_status=planned_not_run</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">后验干预 CLI</td><td style="padding:7px 10px;">新建 cli/evaluate_gate_intervention.py</td><td style="padding:7px 10px;">--mode {frozen_mean,shuffled}、--split val</td><td style="padding:7px 10px;">产出五模式对比表（RMSE/CRPS + 每图权重均值/标准差）；只读验证集</td></tr>
+        </tbody>
+      </table>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">⑤ 验收自检清单</div>
+      <div style="font-size:13px;line-height:1.8;margin-top:4px;">
+        ☐ graphs.gate_mode 默认 learned，回归不破坏 A0–A11<br>
+        ☐ uniform 输出在启用图上严格等权；frozen_mean 跨样本权重完全相同且仅验证集拟合<br>
+        ☐ shuffled 固定种子置换、逐图边缘均值一致、不重训<br>
+        ☐ parameter_matched 总参数量与 learned 逐位相等、gate 参数不更新<br>
+        ☐ A12 可展开、experiment_id 稳定；后验 CLI 输出五模式对比表<br>
+        ☐ 论文对四类对照成套报告，措辞限定「动态门控相对对照的改善」；每变体多 seed（≥10）mean±SD
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">⑥ 引用来源</div>
+      <div style="font-size:12.5px;line-height:1.9;margin-top:4px;">
+        1. Jain, S., Wallace, B.C. Attention is not Explanation. <i>NAACL-HLT 2019</i>, pp.3543–3556. <a href="https://aclanthology.org/N19-1357/">DOI: 10.18653/v1/N19-1357</a> · <a href="https://arxiv.org/abs/1902.10186">arXiv:1902.10186</a><br>
+        2. Wiegreffe, S., Pinter, Y. Attention is not not Explanation. <i>EMNLP-IJCNLP 2019</i>, pp.11–20. <a href="https://aclanthology.org/D19-1002/">DOI: 10.18653/v1/D19-1002</a> · <a href="https://arxiv.org/abs/1908.04626">arXiv:1908.04626</a><br>
+        3. Michel, P., Levy, O., Neubig, G. Are Sixteen Heads Really Better than One? <i>NeurIPS 2019</i>. <a href="https://arxiv.org/abs/1905.10650">arXiv:1905.10650</a>
+      </div>
+    </div>
+
+    <!-- 缺口 4 -->
+    <div style="margin-top:22px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 22px;">
+      <div style="font-size:16px;font-weight:700;border-left:4px solid #0d9488;padding-left:10px;">缺口 4：参数敏感性 one-factor-at-a-time 协议<span style="float:right;font-size:12px;background:#fee2e2;color:#b91c1c;border-radius:10px;padding:2px 8px;">P0 · C3-7</span></div>
+      <div style="font-size:13px;color:#475569;margin-top:10px;line-height:1.7;">
+        <b>现状：</b>configs/sdwpf_v3_2.yaml 可调参数集中 data/physics/graphs/model 段；消费处已核实——history_steps→<code>window.py:15/28</code>；correlation_k/geographic_k→<code>graphs/builders.py:14–22/54</code>；direction_distance_scale/sigma→<code>builders.py:93–137（:128–129）</code>；temporal_kernel→<code>backbone.py:139–143（:107 强制奇数）</code>；power_curve_bins→<code>physics/power_curve.py:41/68</code>；gate 宽度与全局 hidden_dim 共享（backbone.py:147–151）。
+        matrix.py ExperimentSpec.variants=(variant, overrides)（:15–22）与 A6 的逐参数多水平写法（:87–92）是现成范式。<b>缺口：</b>src 内无任何 OFAT 敏感性实验；无「基线值→单参数多水平→验证集指标→最大退化/边界判定」报告产物。<b>P0 理由：</b>C3-7 是 P0 硬缺口；无敏感性分析无法证明结果不是「恰好卡在幸运超参点」。
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">② 文献依据表</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px;border:1px solid #e2e8f0;">
+        <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:7px 10px;">文献（作者-年份）</th><th style="padding:7px 10px;">出处/年份</th><th style="padding:7px 10px;">DOI/arXiv</th><th style="padding:7px 10px;">关键做法</th><th style="padding:7px 10px;">可借鉴协议要素</th></tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Czitrom 1999</td><td style="padding:7px 10px;">The American Statistician 53(2):126–131</td><td style="padding:7px 10px;"><a href="https://doi.org/10.1080/00031305.1999.10474445">10.1080/00031305.1999.10474445</a></td><td style="padding:7px 10px;">OFAT 与设计实验（DOE）对比：每次只动一个因子、其余固定；用中心点检查响应曲面曲率；明确 OFAT 无法估计因子间交互</td><td style="padding:7px 10px;">OFAT 标准操作；必须有基线中心点（本文=默认配置）；诚实声明不捕捉交互作用</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Saltelli 2002</td><td style="padding:7px 10px;">Computer Physics Communications 145(2):280–297</td><td style="padding:7px 10px;"><a href="https://doi.org/10.1016/S0010-4655(02)00280-1">10.1016/S0010-4655(02)00280-1</a></td><td style="padding:7px 10px;">全局敏感性分析：输出方差分解到各输入因子（一阶/总阶 Sobol 指数）；讨论因子相关处理</td><td style="padding:7px 10px;">作为 OFAT 的对照方法学引用；报告时区分单因子主效应与交互作用</td></tr>
+        </tbody>
+      </table>
+      <div style="font-size:12px;color:#64748b;margin-top:4px;">※ 只选 2 篇：Czitrom 为 OFAT 协议经典出处，Saltelli 为全局 SA 方法学锚点；未强行凑 TSTE/Applied Energy 逐参数扰动表实例（无法逐字核验，宁缺毋滥）。</div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">③ 标准做法要点</div>
+      <div style="font-size:13px;line-height:1.8;margin-top:4px;">
+        1. <b>一次只动一个因子</b>，其余全保持默认（Czitrom 1999）。<br>
+        2. <b>以默认配置为基线中心点</b>，扰动水平围绕中心点上下展开（Czitrom 1999）。<br>
+        3. <b>每参数 3–5 个水平且包含基线水平</b>，跨越物理意义区间而非仅 ±10%。<br>
+        4. <b>只在验证集评估</b>，绝不触碰测试集（C3-7；C3-5 超参只在验证集选择）。<br>
+        5. <b>报告每参数最大绝对退化</b>（对齐 C4-3 用绝对量）+ 最优水平所在。<br>
+        6. <b>边界判定</b>：最优水平出现在扰动端点时标注 at_boundary，说明搜索区间可能太窄（C3-7）。<br>
+        7. <b>多 seed mean±SD</b>（≥10，对齐 C0-2），避免单 seed 波动误读为敏感性。<br>
+        8. <b>诚实声明 OFAT 局限</b>：不捕捉因子间交互（Czitrom 1999；Saltelli 2002），本文用 OFAT 做稳健性筛查而非全局排序。
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">④ 实现规范（真实落点 · 七组参数逐组映射）</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px;border:1px solid #e2e8f0;">
+        <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:7px 10px;">报告分组</th><th style="padding:7px 10px;">映射配置键</th><th style="padding:7px 10px;">基线值</th><th style="padding:7px 10px;">落点文件/函数</th><th style="padding:7px 10px;">建议扰动水平</th></tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">1 history</td><td style="padding:7px 10px;">data.history_steps</td><td style="padding:7px 10px;">24</td><td style="padding:7px 10px;">window.py:15/28</td><td style="padding:7px 10px;">12, 18, 24, 36, 48（10 min 步）</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">2 Top-K</td><td style="padding:7px 10px;">graphs.correlation_k（geographic_k=8 为姊妹组）</td><td style="padding:7px 10px;">12</td><td style="padding:7px 10px;">builders.py:54 _top_k</td><td style="padding:7px 10px;">4, 8, 12, 16, 24</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">3 distance scale</td><td style="padding:7px 10px;">graphs.direction_distance_scale</td><td style="padding:7px 10px;">1000.0</td><td style="padding:7px 10px;">builders.py:97/128</td><td style="padding:7px 10px;">500, 1000, 2000, 4000（米）</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">4 bandwidth</td><td style="padding:7px 10px;">graphs.direction_sigma_degrees</td><td style="padding:7px 10px;">30.0</td><td style="padding:7px 10px;">builders.py:98/129</td><td style="padding:7px 10px;">10, 20, 30, 45, 60（度）</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">5 lag</td><td style="padding:7px 10px;">model.temporal_kernel</td><td style="padding:7px 10px;">3</td><td style="padding:7px 10px;">backbone.py:139/107（强制奇数）</td><td style="padding:7px 10px;">1, 3, 5, 7（只取奇数）</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">6 bin width</td><td style="padding:7px 10px;">physics.power_curve_bins</td><td style="padding:7px 10px;">50</td><td style="padding:7px 10px;">power_curve.py:41/68</td><td style="padding:7px 10px;">20, 35, 50, 75, 100</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">7 gate width</td><td style="padding:7px 10px;">新增 model.gate_hidden_dim（当前与 hidden_dim 耦合）</td><td style="padding:7px 10px;">64（null→回退 hidden_dim）</td><td style="padding:7px 10px;">backbone.py:147–151 self.gate</td><td style="padding:7px 10px;">32, 48, 64, 96, 128</td></tr>
+        </tbody>
+      </table>
+      <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:12.5px;border:1px solid #e2e8f0;">
+        <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:7px 10px;">改动点</th><th style="padding:7px 10px;">落点文件/函数/配置键</th><th style="padding:7px 10px;">新增参数与默认值</th><th style="padding:7px 10px;">验收方式</th></tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">解耦 gate 宽度</td><td style="padding:7px 10px;">configs 新增 model.gate_hidden_dim；backbone.py __init__(:87–105) 消费</td><td style="padding:7px 10px;">model.gate_hidden_dim: null（null→回退 model.hidden_dim）</td><td style="padding:7px 10px;">gate_hidden_dim=32 时 gate 中间层为 32，主干仍 64</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">敏感性实验规格</td><td style="padding:7px 10px;">matrix.py 新增 group=sensitivity 的 S1–S7</td><td style="padding:7px 10px;">沿用 A6 的 tuple((f"{key}_{v}", {key: v}) for v in levels)</td><td style="padding:7px 10px;">展开后每 run 只含一个覆盖键</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">验证集评估约定</td><td style="padding:7px 10px;">ExperimentSpec 新字段 eval_split 或 group 约定</td><td style="padding:7px 10px;">eval_split="test"（默认）；sensitivity 强制 "val"</td><td style="padding:7px 10px;">产物每条 split=="val"，无 test 混入</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">敏感性报告产物</td><td style="padding:7px 10px;">新建 cli/aggregate_sensitivity.py（或扩展 aggregate_seed_runs.py）</td><td style="padding:7px 10px;">无新配置键</td><td style="padding:7px 10px;">报告表含 max_abs_degradation 与 at_boundary 列</td></tr>
+        </tbody>
+      </table>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">⑤ 验收自检清单</div>
+      <div style="font-size:13px;line-height:1.8;margin-top:4px;">
+        ☐ S1–S7 每组 variants 只覆盖一个配置键；七组映射齐全（含新增 model.gate_hidden_dim）<br>
+        ☐ 每组水平含基线；temporal_kernel 水平全为奇数<br>
+        ☐ 敏感性 run split 标注 val；产物无 test 指标<br>
+        ☐ 报告含每参数 max_abs_degradation（绝对量）与 at_boundary；多 seed mean±SD<br>
+        ☐ 论文敏感性节声明 OFAT 不捕捉交互（引用 Czitrom/Saltelli），定位为稳健性筛查<br>
+        ☐ gate_hidden_dim 不传时回退 hidden_dim，回归不破坏 A0–A12
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">⑥ 引用来源</div>
+      <div style="font-size:12.5px;line-height:1.9;margin-top:4px;">
+        1. Czitrom, V. One-Factor-at-a-Time Versus Designed Experiments. <i>The American Statistician</i> 53(2):126–131, 1999. <a href="https://doi.org/10.1080/00031305.1999.10474445">DOI: 10.1080/00031305.1999.10474445</a><br>
+        2. Saltelli, A. Making best use of model evaluations to compute sensitivity indices. <i>Computer Physics Communications</i> 145(2):280–297, 2002. <a href="https://doi.org/10.1016/S0010-4655(02)00280-1">DOI: 10.1016/S0010-4655(02)00280-1</a>
+      </div>
+    </div>
+
+    <!-- 缺口 5 -->
+    <div style="margin-top:22px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 22px;">
+      <div style="font-size:16px;font-weight:700;border-left:4px solid #f59e0b;padding-left:10px;">缺口 5：鲁棒性协议增强（加性噪声 / 特征级缺失 / 关键气象通道缺失）<span style="float:right;font-size:12px;background:#fef3c7;color:#b45309;border-radius:10px;padding:2px 8px;">P1 · C3-4</span></div>
+      <div style="font-size:13px;color:#475569;margin-top:10px;line-height:1.7;">
+        <b>现状：</b>data/stress.py 已有 mcar(:56)/block(:72)/spatial(:99)/extreme_conditioned(:125) 四种缺失 + <code>apply_missingness_stress(:159)</code> + <code>rebuild_issue_time_derived(:241)</code>（p_pc/等效风速重算）；<code>_candidates(mask, eligible)(:45)</code> 已支持 eligible 但 CLI 从未透出；rmse_degradation 绝对退化已实现（evaluate_missing_stress.py:262）。
+        <b>缺口：</b>① 无加性 Gaussian 噪声压力算子（更无「按训练 SD 缩放」协议）；② 特征级缺失未暴露（--drop-features）；③ 关键气象通道（Wspd/Wdir/Sp/T2m）无专门档位。<b>P1 理由：</b>C3-4 为部分满足，补三项增强即闭环，改动集中在 stress.py 与 CLI。
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">② 文献依据表</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px;border:1px solid #e2e8f0;">
+        <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:7px 10px;">文献（作者-年份）</th><th style="padding:7px 10px;">出处/年份</th><th style="padding:7px 10px;">DOI/arXiv</th><th style="padding:7px 10px;">关键做法</th><th style="padding:7px 10px;">可借鉴协议要素</th></tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Wen 2024</td><td style="padding:7px 10px;">Energy 300:131544</td><td style="padding:7px 10px;"><a href="https://doi.org/10.1016/j.energy.2024.131544">10.1016/j.energy.2024.131544</a></td><td style="padding:7px 10px;">风电概率预测显式处理传感器失效/网络中断导致的缺失值，覆盖 MCAR/MAR/MNAR；无需预处理/重训练适配缺失模式；CRPS 评估</td><td style="padding:7px 10px;">缺失压力区分「随机点缺失」与「特征级/传感器级缺失」；缺失模式作为与噪声并列的输入扰动评估；CRPS/RMSE 退化度量</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Zhao, Zhao, Chen, Liao, Pan &amp; Ye 2026</td><td style="padding:7px 10px;">IEEE TSTE 17(1):16–29</td><td style="padding:7px 10px;"><a href="https://doi.org/10.1109/TSTE.2025.3597967">10.1109/TSTE.2025.3597967</a></td><td style="padding:7px 10px;">跨 30 风场可解释风电预测；报告「噪声与缺失数据实验」下鲁棒性更强（TSTE 级常规评估环节）</td><td style="padding:7px 10px;">「噪声+缺失」双扰动是 TSTE 风电预测标准鲁棒性评估环节；退化以相对干净参考的增量报告</td></tr>
+        </tbody>
+      </table>
+      <div style="font-size:12px;color:#64748b;margin-top:4px;">※ 检索到的 Scientific Reports/预印本/MDPI Energies 候选因不在指定顶刊清单或未正式发表，按「灰区不使用」剔除。</div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">③ 标准做法要点</div>
+      <div style="font-size:13px;line-height:1.8;margin-top:4px;">
+        1. <b>缺失类与噪声类并行评估</b>，二者是并列的鲁棒性维度（Zhao 2026；C3-4）。<br>
+        2. <b>缺失覆盖四机制</b>：随机点/时间块/空间 outage/特征级（整列特征不可用=真实传感器失效）（Wen 2024）。<br>
+        3. <b>噪声幅度按训练 SD 缩放且逐特征缩放</b>：输入已在标准化空间（preprocess_sdwpf 仅标准化输入），叠加 N(0,k²) 等价原始空间 k·σ_train[d]；k∈{0.10,0.25,0.50,1.00} 无量纲、跨量纲可比。<br>
+        4. <b>噪声只加在观测条目（mask&gt;0）</b>，不把缺失与噪声混叠。<br>
+        5. <b>派生量重算、不独立扰动</b>：p_pc/等效风速/current_y/wind_from 一律经 rebuild_issue_time_derived 重算（C3-4）。<br>
+        6. <b>绝对退化报告</b>：rmse/mae_degradation 以 kW 绝对量，小负波动按数值波动处理（C4-3）。
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">④ 实现规范（真实落点）</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px;border:1px solid #e2e8f0;">
+        <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:7px 10px;">改动点</th><th style="padding:7px 10px;">落点文件/函数/配置键</th><th style="padding:7px 10px;">新增参数与默认值</th><th style="padding:7px 10px;">验收方式</th></tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">加性 Gaussian 噪声算子</td><td style="padding:7px 10px;">data/stress.py 新增 additive_gaussian_noise(x, mask, train_std, *, level, seed, channel_index=None)</td><td style="padding:7px 10px;">level 由 CLI 传；内部 rng=default_rng(seed)；train_std 取自 metadata feature_scaler.std</td><td style="padding:7px 10px;">level=0 逐元素相等；level=1 观测通道样本方差≈2；仅 mask&gt;0 被改</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">噪声档接入压力组装</td><td style="padding:7px 10px;">evaluate_missing_stress.py _stress_selections(:61) 后新增 _noise_selections</td><td style="padding:7px 10px;">--noise-levels default=[0.10,0.25,0.50,1.00]；--noise-channels default=null</td><td style="padding:7px 10px;">payload["stress"] 出现 gaussian_noise_0.1/0.25/0.5/1 四档；噪声后必走 rebuild_issue_time_derived</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">特征级缺失（eligible 透传）</td><td style="padding:7px 10px;">stress.py 新增 feature_eligible_mask()；_stress_selections 调 mcar_missingness(..., eligible=)</td><td style="padding:7px 10px;">--drop-features default=[]；--drop-mcar-rate default=0.30</td><td style="padding:7px 10px;">--drop-features Wspd 产出 featuredrop_Wspd 档，含 eligible_channels=["Wspd"]</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">关键气象通道预设</td><td style="padding:7px 10px;">configs 新增 stress: 块；_stress_selections 读取循环产出</td><td style="padding:7px 10px;">stress.weather_channels: [Wspd,Wdir,Sp,T2m]；stress.weather_mcar_rate: 0.30；stress.gaussian_noise_levels: [0.10,0.25,0.50,1.00]</td><td style="padding:7px 10px;">默认产出 weatherdrop_Wspd/Wdir/Sp/T2m 四档</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">退化与元数据归档</td><td style="padding:7px 10px;">evaluate_missing_stress.py main(:238–265) payload</td><td style="padding:7px 10px;">selection 记录 noise_level/dropped_channels/eligible_channels/train_std_hash</td><td style="padding:7px 10px;">沿用 :262 绝对退化公式；训练 SD 仅取 train split</td></tr>
+        </tbody>
+      </table>
+      <div style="font-size:12.5px;margin-top:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;"><b>推荐新增配置块（追加到 configs/sdwpf_v3_2.yaml 末尾）：</b><br>
+        <code>stress:<br>&nbsp;&nbsp;gaussian_noise_levels: [0.10, 0.25, 0.50, 1.00]&nbsp;&nbsp;# × 逐特征训练 SD（标准化空间 N(0,k²)）<br>&nbsp;&nbsp;gaussian_noise_channels: null&nbsp;&nbsp;# null=全部观测输入特征；或 [Wspd, Wdir, Sp, T2m]<br>&nbsp;&nbsp;weather_channels: [Wspd, Wdir, Sp, T2m]&nbsp;&nbsp;# 关键气象/物理通道，单独做特征级缺失<br>&nbsp;&nbsp;weather_mcar_rate: 0.30<br>&nbsp;&nbsp;drop_features: []<br>&nbsp;&nbsp;drop_mcar_rate: 0.30</code></div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">⑤ 验收自检清单</div>
+      <div style="font-size:13px;line-height:1.8;margin-top:4px;">
+        ☐ additive_gaussian_noise：level=0 输出与输入完全一致；level&gt;0 仅 mask&gt;0 被改<br>
+        ☐ 压力输出新增 gaussian_noise_0.1/0.25/0.5/1 四档；--drop-features 与 weatherdrop_* 档可用<br>
+        ☐ 每档相对 clean 输出 rmse/mae_degradation（kW 绝对量），字段名与现有 mcar 档一致<br>
+        ☐ 噪声/featuredrop 档均经 rebuild_issue_time_derived 重算派生量<br>
+        ☐ 未改动 apply_missingness_stress/rebuild_issue_time_derived 既有签名（A9 链路不破坏）
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">⑥ 引用来源</div>
+      <div style="font-size:12.5px;line-height:1.9;margin-top:4px;">
+        1. Wen, H. Probabilistic wind power forecasting resilient to missing values: An adaptive quantile regression approach. <i>Energy</i> 300:131544, 2024. <a href="https://doi.org/10.1016/j.energy.2024.131544">DOI: 10.1016/j.energy.2024.131544</a><br>
+        2. Zhao, Y., Zhao, Y., Chen, Y., Liao, H., Pan, S., Ye, L. Interpretable Wind Power Forecasting With Feature and Loss Function Construction Guided by Domain Knowledge. <i>IEEE TSTE</i> 17(1):16–29, 2026. <a href="https://doi.org/10.1109/TSTE.2025.3597967">DOI: 10.1109/TSTE.2025.3597967</a>
+      </div>
+    </div>
+
+    <!-- 缺口 6 -->
+    <div style="margin-top:22px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 22px;">
+      <div style="font-size:16px;font-weight:700;border-left:4px solid #f59e0b;padding-left:10px;">缺口 6：配对统计推断增强（效应量 + Holm 多重比较校正）<span style="float:right;font-size:12px;background:#fef3c7;color:#b45309;border-radius:10px;padding:2px 8px;">P1 · C2-2</span></div>
+      <div style="font-size:13px;color:#475569;margin-top:10px;line-height:1.7;">
+        <b>现状：</b>eval/statistics.py 已有 <code>newey_west_variance(:37)</code>、<code>diebold_mariano(:56)→DMResult</code>（statistic/p_value/mean_loss_difference，无效应量）、<code>event_bootstrap_ci(:94)</code>（事件簇聚类 CI）、<code>contiguous_event_ids(:139)</code>、<code>aggregate_seed_metrics(:189)</code>（仅 mean/std/min/max/count）。
+        <b>缺口：</b>① 无效应量（样本量大时微小差异也显著，需标准化效应量区分统计显著与实质显著）；② 无多重比较校正（同一主模型对 B0–B9/A 系列/压力档做 k 次配对检验需控制家族错误率，C2-2 指定 Holm）。<b>P1 理由：</b>补两个纯函数即可闭环，不改既有函数签名。
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">② 文献依据表</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px;border:1px solid #e2e8f0;">
+        <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:7px 10px;">文献（作者-年份）</th><th style="padding:7px 10px;">出处/年份</th><th style="padding:7px 10px;">DOI/arXiv</th><th style="padding:7px 10px;">关键做法</th><th style="padding:7px 10px;">可借鉴协议要素</th></tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Diebold &amp; Mariano 1995</td><td style="padding:7px 10px;">JBES 13(3):253–263</td><td style="padding:7px 10px;"><a href="https://doi.org/10.1080/07350015.1995.10524599">10.1080/07350015.1995.10524599</a></td><td style="padding:7px 10px;">配对损失差 d_t=loss_A−loss_B，HAC 方差标准化均值差做等预测能力检验</td><td style="padding:7px 10px;">配对单位=同一 origin/事件；损失差符号约定；HAC 滞后处理时序相关（代码已实现）</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Holm 1979</td><td style="padding:7px 10px;">Scand. J. Stat. 6(2):65–70</td><td style="padding:7px 10px;"><a href="https://doi.org/10.2307/4615733">10.2307/4615733</a></td><td style="padding:7px 10px;">序贯拒绝（step-down）多重检验：k 个 p 升序，第 i 个与 α/(k−i+1) 比较；控制 FWER 强于 Bonferroni</td><td style="padding:7px 10px;">校正算法骨架；调整后 p 单调非降（见标准做法 3-2）</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Benjamini &amp; Hochberg 1995</td><td style="padding:7px 10px;">JRSS-B 57(1):289–300</td><td style="padding:7px 10px;"><a href="https://doi.org/10.1111/j.2517-6161.1995.tb02031.x">10.1111/j.2517-6161.1995.tb02031.x</a></td><td style="padding:7px 10px;">FDR 控制 step-up 法</td><td style="padding:7px 10px;">作为 Holm 的对照/备选：投稿默认 Holm（FWER），探索性分析可用 BH</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Cohen 1988</td><td style="padding:7px 10px;">专著（2nd ed., Lawrence Erlbaum）</td><td style="padding:7px 10px;">无 DOI（经典著作）</td><td style="padding:7px 10px;">标准化均值差 d=(μ₁−μ₂)/σ；经验阈值 0.2/0.5/0.8（小/中/大）</td><td style="padding:7px 10px;">效应量定义基准；配对设计用差值序列 SD 标准化（d_z）而非合并 SD</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">（方法脉络）Giacomini &amp; White 2006</td><td style="padding:7px 10px;">Econometrica 74(6):1545–1578</td><td style="padding:7px 10px;"><a href="https://doi.org/10.1111/j.1468-0262.2006.00718.x">10.1111/j.1468-0262.2006.00718.x</a></td><td style="padding:7px 10px;">把 DM 推广到条件预测能力与估计样本外场景</td><td style="padding:7px 10px;">本代码 diebold_mariano 属其无条件 EPA 框架；保留 hac_lags 即对应滚动/固定估计窗口设定</td></tr>
+        </tbody>
+      </table>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">③ 标准做法要点</div>
+      <div style="font-size:13px;line-height:1.8;margin-top:4px;">
+        <b>3-1 配对效应量（Cohen's d 配对版）</b>：差值 d_i = a_i − b_i；均值差 M_d；差值 SD：SD_d = sqrt(Σ(d_i−M_d)²/(n−1))（ddof=1）；<b>d_z = M_d / SD_d</b>（无量纲，与 DM 同一差值序列配套）；小样本校正 <b>Hedges' g = J·d_z，J = 1 − 3/(4(n−1) − 1)</b>；判读沿用 0.2/0.5/0.8。<br>
+        <b>3-2 Holm step-down</b>：① p 升序 p_(1)≤…≤p_(k)；② 从 i=1 起 p_(i) &lt; α/(k−i+1)；③ 到第一个不满足的 i* 停，之前全拒绝；④ 调整后 p：p̃_(i)=max_{j≤i}(k−j+1)·p_(j)，截断 ≤1。<br>
+        <b>3-3 接入关系</b>：diebold_mariano 不动签名；CI 复用 event_bootstrap_ci（事件簇）或 M_d±z·SE（newey_west_variance）；k=同一张表内要比较的基线/变体个数，报告显式写 k 与 α。
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">④ 实现规范（真实落点）</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px;border:1px solid #e2e8f0;">
+        <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:7px 10px;">改动点</th><th style="padding:7px 10px;">落点文件/函数/配置键</th><th style="padding:7px 10px;">新增参数与默认值</th><th style="padding:7px 10px;">验收方式</th></tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">配对效应量</td><td style="padding:7px 10px;">statistics.py 新增 EffectSizeResult + cohens_d_paired(loss_a, loss_b)</td><td style="padding:7px 10px;">内部复用 diebold_mariano 有限对掩码；输出 mean_diff/sd_diff/d_z/hedges_g/n_pairs</td><td style="padding:7px 10px;">两序列相等→d_z=0；常量偏移→SD=0 返回 inf 并按约定标记</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Holm 校正</td><td style="padding:7px 10px;">statistics.py 新增 holm_correction(p_values, *, alpha=0.05) → HolmResult</td><td style="padding:7px 10px;">alpha=0.05</td><td style="padding:7px 10px;">教科书样例 p=[0.001,0.008,0.039,0.041,0.042]（k=5,α=.05）手算一致；调整 p 单调非降</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">配对比较组合器</td><td style="padding:7px 10px;">statistics.py 新增 paired_model_comparison(loss_a, loss_b, event_ids=None, *, hac_lags, alpha=0.05, n_boot=2000, seed=0)</td><td style="padding:7px 10px;">hac_lags 必填；event_ids=None 退化 HAC 正态 CI</td><td style="padding:7px 10px;">输出 statistic/p_raw/p_adjusted_holm/reject/d_z/hedges_g/mean_diff/ci/n_pairs</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">多比较批量校正</td><td style="padding:7px 10px;">statistics.py 新增 apply_holm_to_reports(comparisons, alpha=0.05)</td><td style="padding:7px 10px;">无</td><td style="padding:7px 10px;">3 个比较输出同家族 adjusted p</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">seed 聚合扩展</td><td style="padding:7px 10px;">aggregate_seed_runs.py / aggregate_seed_metrics(:189)</td><td style="padding:7px 10px;">新增可选输出块 paired:（不改 summary 结构）</td><td style="padding:7px 10px;">聚合产物同时含 summary 与 paired，互不覆盖</td></tr>
+        </tbody>
+      </table>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">⑤ 验收自检清单</div>
+      <div style="font-size:13px;line-height:1.8;margin-top:4px;">
+        ☐ cohens_d_paired：常量偏移 d_z 符号与 mean_diff 一致；n=1 不崩（NaN+提示）<br>
+        ☐ holm_correction：手算样例一致；调整后单调非降；reject 为「前 r 个拒绝」前缀形式<br>
+        ☐ paired_model_comparison 同时给 p_raw/p_adjusted_holm；event_ids 时 CI 来自 event_bootstrap_ci<br>
+        ☐ 关键对比均含 C2-2 四件套：配对差值、95% CI、p_raw、p_adjusted_holm + reject + cohens_d_z + n_pairs<br>
+        ☐ diebold_mariano/event_bootstrap_ci/aggregate_seed_metrics 既有签名未变<br>
+        ☐ 探索性 BH 与 Holm 在文档中明确区分（Holm 为投稿默认，FWER）
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">⑥ 引用来源</div>
+      <div style="font-size:12.5px;line-height:1.9;margin-top:4px;">
+        1. Diebold, F.X., Mariano, R.S. Comparing Predictive Accuracy. <i>JBES</i> 13(3):253–263, 1995. <a href="https://doi.org/10.1080/07350015.1995.10524599">DOI: 10.1080/07350015.1995.10524599</a><br>
+        2. Holm, S. A Simple Sequentially Rejective Multiple Test Procedure. <i>Scandinavian Journal of Statistics</i> 6(2):65–70, 1979. <a href="https://doi.org/10.2307/4615733">DOI: 10.2307/4615733</a><br>
+        3. Benjamini, Y., Hochberg, Y. Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing. <i>JRSS-B</i> 57(1):289–300, 1995. <a href="https://doi.org/10.1111/j.2517-6161.1995.tb02031.x">DOI: 10.1111/j.2517-6161.1995.tb02031.x</a><br>
+        4. Cohen, J. <i>Statistical Power Analysis for the Behavioral Sciences</i>, 2nd ed. Lawrence Erlbaum, 1988.（专著，无 DOI）<br>
+        5. Giacomini, R., White, H. Tests of Conditional Predictive Ability. <i>Econometrica</i> 74(6):1545–1578, 2006. <a href="https://doi.org/10.1111/j.1468-0262.2006.00718.x">DOI: 10.1111/j.1468-0262.2006.00718.x</a>
+      </div>
+    </div>
+
+    <!-- 缺口 7 -->
+    <div style="margin-top:22px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 22px;">
+      <div style="font-size:16px;font-weight:700;border-left:4px solid #f59e0b;padding-left:10px;">缺口 7：计算成本测量（FLOPs / 训练时间）<span style="float:right;font-size:12px;background:#fef3c7;color:#b45309;border-radius:10px;padding:2px 8px;">P1 · C3-6</span></div>
+      <div style="font-size:13px;color:#475569;margin-top:10px;line-height:1.7;">
+        <b>现状：</b>cli/benchmark_inference.py 已有 <code>_parameter_count(:21)</code>、时延测量（warm-up 10 次 + 重复 100 次，perf_counter，p50/p95/p99，:62–85）、吞吐（:109–111）、峰值显存（:87–89/:112）；matrix.py A4 声明 latency/peak_vram、A5 声明 training_time（无实现）。
+        <b>缺口：</b>① 无 FLOPs/MACs 计数；② 无训练时间墙钟打点；③ 计时协议元数据不足（CUDA 编译/cudnn benchmark/CPU 频率未记录）。<b>P1 理由：</b>C3-6 要求参数/FLOPs/时延/吞吐/训练时间/峰值内存六项，仅差 FLOPs 与训练时间两项。
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">② 文献依据表</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px;border:1px solid #e2e8f0;">
+        <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:7px 10px;">文献（作者-年份）</th><th style="padding:7px 10px;">出处/年份</th><th style="padding:7px 10px;">DOI/arXiv</th><th style="padding:7px 10px;">关键做法</th><th style="padding:7px 10px;">可借鉴协议要素</th></tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Tan &amp; Le 2019</td><td style="padding:7px 10px;">ICML 2019</td><td style="padding:7px 10px;"><a href="https://arxiv.org/abs/1905.11946">arXiv:1905.11946</a></td><td style="padding:7px 10px;">EfficientNet 逐模型报告 params(M) 与 FLOPs(B)，并给推理加速比；compound scaling 中 FLOPs 随 depth/width/resolution 缩放</td><td style="padding:7px 10px;">params+FLOPs+推理时延三件套同时报告；FLOPs 以 B 为单位；区分参数量与计算量</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Ma, Zhang, Zheng &amp; Sun 2018</td><td style="padding:7px 10px;">ECCV 2018</td><td style="padding:7px 10px;"><a href="https://arxiv.org/abs/1807.11164">arXiv:1807.11164</a></td><td style="padding:7px 10px;">FLOPs 是间接指标：实际速度受 memory access cost/平台特性/并行度影响；须在目标平台实测直接指标</td><td style="padding:7px 10px;">FLOPs 必须配合实测时延；计时注明平台（GPU 型号/batch size）；区分理论 FLOPs 与端到端 latency</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Strubell, Ganesh &amp; McCallum 2019</td><td style="padding:7px 10px;">ACL 2019</td><td style="padding:7px 10px;"><a href="https://arxiv.org/abs/1906.02243">arXiv:1906.02243</a></td><td style="padding:7px 10px;">量化训练成本与碳足迹：GPU 小时数、总能耗 kWh、CO₂；区分单次训练与完整研发成本</td><td style="padding:7px 10px;">训练时间以 GPU 小时/墙钟秒报告并注明 GPU 型号与数量；记录完整训练流程总时间</td></tr>
+        </tbody>
+      </table>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">③ 标准做法要点</div>
+      <div style="font-size:13px;line-height:1.8;margin-top:4px;">
+        1. <b>FLOPs 统计口径</b>：采用 MACs（一次乘加≈2 FLOPs，或论文声明 MACs≈FLOPs/2 惯例）；产物标注 flops_type: "macs" 或 "floating_point_ops"。<br>
+        2. <b>三件套同时报告</b>：参数量(M) + FLOPs/MACs(单次前向) + 实测时延(ms, p50/p95)（Ma 2018）。<br>
+        3. <b>测量工具</b>：thop（ptflops）或 fvcore.nn.FlopCountAnalysis 钩子式统计；输入形状与实际推理 batch 一致（本库 batch=1）；einsum 图传播算子可能漏计需手动补 MACs=batch×nodes²×hidden_dim。<br>
+        4. <b>训练时间</b>：训练循环首尾 time.perf_counter() 打点，记录完整训练流程（含早停）总墙钟秒 + GPU 型号/数量换算 GPU-hours（Strubell 2019）。<br>
+        5. <b>计时协议元数据</b>：warm-up/重复次数/batch size/device/CUDA-cudnn 版本入产物。<br>
+        6. <b>Big-O 复杂度单独给出</b>：注意力 O(L²)、图传播 O(N²)、GRU O(L·d²)，稀疏/稠密分开标注（C3-6）。
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">④ 实现规范（真实落点）</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px;border:1px solid #e2e8f0;">
+        <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:7px 10px;">改动点</th><th style="padding:7px 10px;">落点文件/函数/配置键</th><th style="padding:7px 10px;">新增参数与默认值</th><th style="padding:7px 10px;">验收方式</th></tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">FLOPs 统计函数</td><td style="padding:7px 10px;">cli/benchmark_inference.py 新增 _flops_count(model, sample_inputs) → dict</td><td style="padding:7px 10px;">依赖 thop（pip install thop，加入 requirements）；batch=1 实际输入形状</td><td style="padding:7px 10px;">产物出现 flops 字段，值&gt;0 且量级合理（hidden=64/history=24 时 MACs 约 10⁶–10⁸）</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">FLOPs 写入产物</td><td style="padding:7px 10px;">benchmark_inference.py:90–113 payload</td><td style="padding:7px 10px;">flops: {deterministic, scenario, unit:"macs", batch_size, input_shape}</td><td style="padding:7px 10px;">flops.deterministic.macs 为正整数，unit=="macs"</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">训练时间打点</td><td style="padding:7px 10px;">cli/train_deterministic.py main() 首尾 perf_counter()</td><td style="padding:7px 10px;">配置键 benchmark.training_time: true；产物 training_time_seconds/gpu_model/gpu_count → train_metadata.json</td><td style="padding:7px 10px;">train_metadata.json 含 training_time_seconds&gt;0、gpu_model、gpu_count</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">训练时间纳入矩阵指标</td><td style="padding:7px 10px;">matrix.py A5（training_time 已声明）；aggregate_seed_runs.py 消费 train_metadata.json</td><td style="padding:7px 10px;">无新增键；所有可训练基线自动继承打点</td><td style="padding:7px 10px;">聚合输出含 training_time 的 mean±SD 行</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Benchmark 配置段</td><td style="padding:7px 10px;">configs/sdwpf_v3_2.yaml 新增 benchmark: 段</td><td style="padding:7px 10px;">benchmark.flops: true、benchmark.training_time: true、benchmark.warmup: 10、benchmark.repetitions: 100</td><td style="padding:7px 10px;">CLI 与 config 一致；flops: true 启用 thop</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">环境元数据</td><td style="padding:7px 10px;">benchmark_inference.py payload</td><td style="padding:7px 10px;">torch_version/cuda_version/cudnn_version（CPU 为 null）</td><td style="padding:7px 10px;">字段存在且为字符串</td></tr>
+        </tbody>
+      </table>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">⑤ 验收自检清单</div>
+      <div style="font-size:13px;line-height:1.8;margin-top:4px;">
+        ☐ 产物含 flops.deterministic.macs / flops.scenario.macs（正整数）、unit=="macs"、input_shape 记录<br>
+        ☐ train_metadata.json 含 training_time_seconds&gt;0、gpu_model、gpu_count<br>
+        ☐ 产物含 torch_version/cuda_version；configs 有 benchmark.flops/training_time: true<br>
+        ☐ A5 training_time 可从训练产物聚合 mean±SD<br>
+        ☐ 论文方法节给 Big-O 复杂度表（注意力 O(L²)、图传播 O(N²)、GRU O(L·d²)），稀疏/稠密分开<br>
+        ☐ thop 已加入 requirements.txt/pyproject.toml
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">⑥ 引用来源</div>
+      <div style="font-size:12.5px;line-height:1.9;margin-top:4px;">
+        1. Tan, M., Le, Q.V. EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks. <i>ICML 2019</i>. <a href="https://arxiv.org/abs/1905.11946">arXiv:1905.11946</a><br>
+        2. Ma, N., Zhang, X., Zheng, H.-T., Sun, J. ShuffleNet V2: Practical Guidelines for Efficient CNN Architecture Design. <i>ECCV 2018</i>. <a href="https://arxiv.org/abs/1807.11164">arXiv:1807.11164</a><br>
+        3. Strubell, E., Ganesh, A., McCallum, A. Energy and Policy Considerations for Deep Learning in NLP. <i>ACL 2019</i>. <a href="https://arxiv.org/abs/1906.02243">arXiv:1906.02243</a>
+      </div>
+    </div>
+
+    <!-- 缺口 8 -->
+    <div style="margin-top:22px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 22px;">
+      <div style="font-size:16px;font-weight:700;border-left:4px solid #6366f1;padding-left:10px;">缺口 8：SOTA 对比基线补充（Transformer / PatchTST / iTransformer）<span style="float:right;font-size:12px;background:#e0e7ff;color:#3730a3;border-radius:10px;padding:2px 8px;">P2 · C5-5</span></div>
+      <div style="font-size:13px;color:#475569;margin-top:10px;line-height:1.7;">
+        <b>现状：</b>models/deterministic_baselines.py:21 <code>TemporalDeterministicBaseline</code> 统一接口 forward(x_fill, mask, delta_t, static_graphs, directional_graph, p_pc_future, future_weather, future_weather_mask)→dict{residual,y_det,hidden,adjacency,graph_weights}；:46 architecture 集合 {gru,tcn,graphwavenet,agcrn}；matrix.py:180–206 B0–B9（B2/B3 用 {"model.architecture": ...} 覆盖键）；configs model 段 architecture: multigraph。
+        <b>缺口：</b>无 Transformer 系列对照（PatchTST/iTransformer 为近年最强时序基线，必纳入证明多图融合增量）；无树模型强基线。<b>P2 理由：</b>写作层对比表需要 SOTA 对照，属补强项；AGCRN/GraphWaveNet 已有，Transformer 类缺失影响 C5-5 四维对比完整性。
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">② 文献依据表</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px;border:1px solid #e2e8f0;">
+        <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:7px 10px;">文献（作者-年份）</th><th style="padding:7px 10px;">出处/年份</th><th style="padding:7px 10px;">DOI/arXiv</th><th style="padding:7px 10px;">关键做法</th><th style="padding:7px 10px;">可借鉴协议要素</th></tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Vaswani et al. 2017</td><td style="padding:7px 10px;">NeurIPS 2017</td><td style="padding:7px 10px;"><a href="https://arxiv.org/abs/1706.03762">arXiv:1706.03762</a></td><td style="padding:7px 10px;">纯注意力编码器-解码器；多头自注意力 O(L²)；位置编码；并行训练</td><td style="padding:7px 10px;">Transformer 基线架构原型；encoder-only 变体可直接用于时序预测；位置编码必加</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Nie et al. 2023</td><td style="padding:7px 10px;">ICLR 2023</td><td style="padding:7px 10px;"><a href="https://arxiv.org/abs/2211.14730">arXiv:2211.14730</a></td><td style="padding:7px 10px;">Patching：时序切分为子序列 patch 作 token；Channel-independence：每通道独立建模共享权重；注意力计算量随 patch 数二次方下降</td><td style="padding:7px 10px;">patch_len/stride 核心超参；channel-independence=各涡轮机独立、共享权重；flatten patches 后接线性预测头</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Liu et al. 2024</td><td style="padding:7px 10px;">ICLR 2024</td><td style="padding:7px 10px;"><a href="https://arxiv.org/abs/2310.06625">arXiv:2310.06625</a></td><td style="padding:7px 10px;">Inverted：每变量完整历史嵌入为一个 token，注意力跨变量计算；FFN 逐 token；线性投影到未来步</td><td style="padding:7px 10px;">与 PatchTST channel-independence 形成对照（显式建模变量间相关性）</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Chen &amp; Guestrin 2016</td><td style="padding:7px 10px;">KDD 2016</td><td style="padding:7px 10px;"><a href="https://arxiv.org/abs/1603.02754">arXiv:1603.02754</a> · <a href="https://doi.org/10.1145/2939672.2939785">10.1145/2939672.2939785</a></td><td style="padding:7px 10px;">梯度提升树系统：稀疏感知、加权分位数 sketch、并行训练</td><td style="padding:7px 10px;">非深度学习强基线；[L,D] 历史窗口展平为特征；逐节点逐 horizon 训练独立模型</td></tr>
+        </tbody>
+      </table>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">③ 标准做法要点</div>
+      <div style="font-size:13px;line-height:1.8;margin-top:4px;">
+        1. <b>Transformer 基线</b>：encoder-only（Vaswani 2017 编码器部分），[B·N, L, d_model] + 位置编码 + N 层 TransformerEncoderLayer，取最后时间步接线性头。<br>
+        2. <b>PatchTST</b>：patching（patch_len/stride）+ channel-independence（与现有 _encode 的 reshape(batch*nodes, history, width) 一致）+ flatten 后线性预测头（Nie 2023）。<br>
+        3. <b>iTransformer</b>：inverted embedding（每 variate 的 [L] 序列→d_model token）+ 注意力跨 variate + FFN 逐 token + 每 variate 线性输出（Liu 2024）。<br>
+        4. <b>公平契约（C3-5）</b>：同 deterministic_train.h5 残差（target_mode: physics_residual）、同 mask/delta_t 输入、同 masked_huber_loss、同调参预算（搜索空间/GPU 小时上限）、验证集选超参。<br>
+        5. <b>XGBoost</b>：独立训练路径，逐节点逐 horizon；作为「经典 ML 上界」对照（Chen &amp; Guestrin 2016）。
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">④ 实现规范（真实落点）</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px;border:1px solid #e2e8f0;">
+        <thead><tr style="background:#f1f5f9;text-align:left;"><th style="padding:7px 10px;">改动点</th><th style="padding:7px 10px;">落点文件/函数/配置键</th><th style="padding:7px 10px;">新增参数与默认值</th><th style="padding:7px 10px;">验收方式</th></tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">Transformer 分支</td><td style="padding:7px 10px;">deterministic_baselines.py:46 集合 + __init__ 分支 + _encode(:117) 分支</td><td style="padding:7px 10px;">transformer_d_model: 64、nhead: 4、num_layers: 2、dim_feedforward: 128、dropout: 0.1（对齐 hidden_dim/dropout）</td><td style="padding:7px 10px;">实例化不报错；forward 输出 shape 正确</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">PatchTST 分支</td><td style="padding:7px 10px;">同文件 + _encode 对应分支</td><td style="padding:7px 10px;">patch_len: 4、patch_stride: 2、patchtst_d_model: 64、nhead: 4、layers: 2</td><td style="padding:7px 10px;">history=24 时 n_patches=(24−4)/2+1=11</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">iTransformer 分支</td><td style="padding:7px 10px;">同文件 + _encode 对应分支</td><td style="padding:7px 10px;">itransformer_d_model: 64、nhead: 4、layers: 2</td><td style="padding:7px 10px;">注意力在 variate 维度计算；输出按节点聚合</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">forward 接口兼容</td><td style="padding:7px 10px;">deterministic_baselines.py forward(:149)</td><td style="padding:7px 10px;">无改动；无图架构用 _FixedAdaptive，adjacency=normalize_adjacency(static[0])，graph_weights 第 0 列=1.0</td><td style="padding:7px 10px;">返回 dict key 集合与现有 gru/tcn 一致</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">矩阵追加</td><td style="padding:7px 10px;">matrix.py:184–198 definitions 元组</td><td style="padding:7px 10px;">B10 Transformer / B11 PatchTST / B12 iTransformer（{"model.architecture": ...}）；XGBoost B13 可选</td><td style="padding:7px 10px;">build_experiment_matrix() 输出含 B10–B12</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">配置键扩展</td><td style="padding:7px 10px;">configs model 段</td><td style="padding:7px 10px;">transformer_*/patchtst_*/itransformer_* 键，默认与 hidden_dim=64/dropout=0.1 对齐</td><td style="padding:7px 10px;">yaml 新增键被 __init__ 读取；不影响默认 multigraph</td></tr>
+          <tr style="border-top:1px solid #eef2f7;"><td style="padding:7px 10px;">XGBoost（可选）</td><td style="padding:7px 10px;">新增 models/tree_baselines.py（独立模块）</td><td style="padding:7px 10px;">依赖 xgboost；baseline.method: "xgboost"、n_estimators: 200、max_depth: 6、learning_rate: 0.1</td><td style="padding:7px 10px;">输出 shape=[B,N,forecast_steps]</td></tr>
+        </tbody>
+      </table>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">⑤ 验收自检清单</div>
+      <div style="font-size:13px;line-height:1.8;margin-top:4px;">
+        ☐ 三种 architecture 均可实例化；forward 返回 dict 含 residual/y_det/hidden/adjacency/graph_weights<br>
+        ☐ history=24 时 PatchTST patch 数=11；iTransformer 注意力在 variate 维<br>
+        ☐ build_experiment_matrix() 含 B10/B11/B12（B13 可选）<br>
+        ☐ 与 B2/B3 同 masked_huber_loss、同 deterministic_train.h5 残差、同 mask/delta_t 通道<br>
+        ☐ 参数量与 GRU/TCN 同量级（约 0.1–2M），调参预算一致<br>
+        ☐ 论文 C5-5 四维对比表纳入 Transformer 类对照（进入预测目标/空间表示/时序骨干/可 claim 差异化）
+      </div>
+
+      <div style="font-size:14px;font-weight:700;margin-top:14px;">⑥ 引用来源</div>
+      <div style="font-size:12.5px;line-height:1.9;margin-top:4px;">
+        1. Vaswani, A. et al. Attention Is All You Need. <i>NeurIPS 30</i>, pp.5998–6008, 2017. <a href="https://arxiv.org/abs/1706.03762">arXiv:1706.03762</a><br>
+        2. Nie, Y., Nguyen, N.H., Sinthong, P., Kalagnanam, J. A Time Series is Worth 64 Words: Long-term Forecasting with Transformers. <i>ICLR 2023</i>. <a href="https://arxiv.org/abs/2211.14730">arXiv:2211.14730</a><br>
+        3. Liu, Y., Hu, T., Zhang, H., Wu, H., Wang, S., Ma, L., Long, M. iTransformer: Inverted Transformers Are Effective for Time Series Forecasting. <i>ICLR 2024</i>. <a href="https://arxiv.org/abs/2310.06625">arXiv:2310.06625</a><br>
+        4. Chen, T., Guestrin, C. XGBoost: A Scalable Tree Boosting System. <i>KDD 2016</i>, pp.785–794. <a href="https://arxiv.org/abs/1603.02754">arXiv:1603.02754</a> · <a href="https://doi.org/10.1145/2939672.2939785">DOI: 10.1145/2939672.2939785</a>
+      </div>
+    </div>
+
+    <!-- 核验说明 -->
+    <div style="margin-top:22px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;">
+      <div style="font-size:15px;font-weight:700;">引用真实性核验说明（独立第三方交叉核验）</div>
+      <div style="font-size:13px;color:#475569;line-height:1.8;margin-top:6px;">
+        全部 <b>26 条引用</b>由独立核验代理逐条复核（general_search + DOI 解析页/arXiv abs/ACL Anthology/IEEE Xplore/出版社页/Zenodo/ORCID 等权威记录页交叉确认），结论：<b>24 VERIFIED · 2 DOUBTFUL（书目细节，已按核验结论修正） · 0 FAIL</b>；无幻觉文献、无 DOI 解析到错误标题。<br>
+        两处修正：① Kelmarsh 数据——所引 record 10.5281/zenodo.16807551 现为 2025-08 v4 版（数据到 2024），按 2022 原版 v0.0.3 概念 DOI 10.5281/zenodo.5841833 引用（本报告已采用），投稿前核对版本；② Valldecabres 论文——补全第三作者 von Bremen，出处 Wind Energy 23:2202–2224。<br>
+        本报告与《约束符合性核查报告》（docs/约束符合性核查报告.md）配套使用：每缺口先看 C-xx 现状，再按本报告②→④→⑤顺序实施（文献依据 → 实现规范 → 验收自检）。本机无 GPU/无项目依赖，本报告只含调研与实现设计，未运行任何训练/实验。
+      </div>
+    </div>
+
+    <div style="margin-top:16px;text-align:center;font-size:12px;color:#94a3b8;">
+      PR-Warn++ 顶刊文献调研与代码补全规范 · v1.0 · 2026-10-10 · 配套：docs/约束符合性核查报告.md · docs/投稿约束清单.md · docs/代码审计报告.html
+    </div>
+
+  </div>
+</div>
+</html>

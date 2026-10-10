@@ -1,0 +1,43 @@
+#!/bin/sh
+# ---------------------------------------------------------------------------
+# commit-msg hook: enforce Conventional Commits.
+# Enable with:  git config core.hooksPath .githooks
+# Bypass with:  git commit --no-verify   (please do not make this a habit)
+# ---------------------------------------------------------------------------
+
+msg_file="$1"
+first_line=$(head -n 1 "$msg_file")
+
+# Let Git-generated messages and work-in-progress markers through untouched.
+case "$first_line" in
+  "Merge "*|"Revert "*|"fixup! "*|"squash! "*|"Initial commit"*|"WIP"*|"wip"*)
+    exit 0 ;;
+esac
+
+# Reject empty headers.
+if [ -z "$(printf '%s' "$first_line" | tr -d '[:space:]')" ]; then
+  printf '\n  Empty commit message. Describe the change.\n\n'
+  exit 1
+fi
+
+pattern='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|exp)(\([A-Za-z0-9._/-]+\))?!?: .+'
+
+if ! printf '%s' "$first_line" | grep -Eq "$pattern"; then
+  printf '\n  Commit message does not follow Conventional Commits.\n\n'
+  printf '    got:   %s\n' "$first_line"
+  printf '    want:  <type>(<scope>): <subject>\n\n'
+  printf '    types: feat fix docs style refactor perf test build ci chore exp\n'
+  printf '    e.g.   feat(cfm): add minibatch OT coupling for A5\n'
+  printf '           fix(calib): correct conformal quantile on odd sample counts\n\n'
+  printf '    See CONTRIBUTING.md section 3.\n\n'
+  exit 1
+fi
+
+# Keep the header readable in git log --oneline and on GitHub.
+len=$(printf '%s' "$first_line" | wc -c | tr -d ' ')
+if [ "$len" -gt 72 ]; then
+  printf '\n  Commit header is %s characters; keep it to 72 or fewer.\n\n' "$len"
+  exit 1
+fi
+
+exit 0
