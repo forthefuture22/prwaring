@@ -273,6 +273,15 @@ def main() -> None:
                 "enabled", ["geo", "corr", "directional", "adaptive"]
             )
         )
+        # Gate-intervention switches (gap-3).  Missing keys fall back to the
+        # learned / coupled defaults so existing runs are unchanged.  These land
+        # in the saved ``model_config`` so checkpoints reload identically.
+        model_config["gate_mode"] = str(
+            config["graphs"].get("gate_mode", "learned")
+        )
+        model_config["gate_hidden_dim"] = config["model"].get(
+            "gate_hidden_dim", None
+        )
         model = DynamicMultiGraphResidualForecaster(**model_config).to(device)
     else:
         model = TemporalDeterministicBaseline(

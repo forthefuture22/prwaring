@@ -30,7 +30,7 @@ def execution_stage(job: Mapping[str, object]) -> str:
     logical_id = str(job["logical_id"])
     if logical_id in {"A1", "A3", "A11"}:
         return "preprocess"
-    if logical_id in {"A0", "A2", "A9"}:
+    if logical_id in {"A0", "A2", "A9", "A12"}:
         return "deterministic"
     if logical_id in {"A5", "A6", "G6"}:
         return "flow"
@@ -170,6 +170,19 @@ def post_command_templates(
 
     stage = execution_stage(job)
     experiment_id = str(job["experiment_id"])
+    if stage == "deterministic" and str(job["logical_id"]) == "A12" and str(job["variant"]) == "learned":
+        # Post-hoc frozen_mean / shuffled interventions on the learned checkpoint.
+        # They read the validation split only and never refit (gap-3 protocol).
+        common = ["--config", config_path,
+                  "--checkpoint", f"outputs/{experiment_id}/best.pt",
+                  "--data-dir", "<PROCESSED_DATA_DIR>", "--split", "val",
+                  "--output-dir", f"outputs/{experiment_id}/gate_intervention"]
+        return [
+            ["python", "-m", "prwarn.cli.evaluate_gate_intervention", *common,
+             "--mode", "frozen_mean"],
+            ["python", "-m", "prwarn.cli.evaluate_gate_intervention", *common,
+             "--mode", "shuffled"],
+        ]
     if stage == "marginal_baseline":
         return [[
             "python", "-m", "prwarn.cli.evaluate_marginal",

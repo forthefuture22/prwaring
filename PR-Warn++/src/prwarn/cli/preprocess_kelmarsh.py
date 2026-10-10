@@ -1,7 +1,18 @@
-"""Preprocess a frozen SDWPF table into leakage-safe window archives.
+"""Preprocess the Kelmarsh wind-farm SCADA table into the shared window archive.
 
-This command performs Gate-1/2 mechanics only.  It does not download data and
-does not silently infer pressure/temperature units.
+Kelmarsh (Plumley 2022, Zenodo record 5841834, CC-BY-4.0) is a 6-turbine
+Senvion MM92 farm sampled every 10 minutes.  Its published table differs from
+SDWPF in two ways that matter for the ground-truth mask:
+
+* there is no blade-pitch or nacelle-direction channel, so the SDWPF
+  ``pitch > 89`` / ``Ndir in [-720, 720]`` / ``Wdir in [-180, 180]`` rules do
+  not transfer -- the dataset-agnostic ``generic_scada_reason_codes`` is used;
+* ambient wind direction is a global (mast) measurement, so the wind-direction
+  mode defaults to ``global`` and no nacelle offset is added.
+
+This command reuses the exact rigid-grid -> bundle -> window -> npz mechanics
+of the SDWPF pipeline; only the column mapping and the row-validity policy
+change.  It does not download data.
 """
 
 from __future__ import annotations
@@ -9,12 +20,18 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from functools import partial
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from prwarn.data.grid import build_rigid_grid, build_sdwpf_bundle, bundle_to_time_node
+from prwarn.data.grid import (
+    bundle_to_time_node,
+    build_rigid_grid,
+    build_sdwpf_bundle,
+    generic_scada_reason_codes,
+)
 from prwarn.data.split import chronological_split
 from prwarn.data.window import make_windows
 from prwarn.graphs.builders import correlation_graph, geographic_graph
@@ -46,31 +63,43 @@ def _history_only_power_curve(values: np.ndarray, origins: np.ndarray, horizon: 
     return np.repeat(origin_value[..., None], horizon, axis=-1).astype(np.float32)
 
 
+def _equivalent(speed, pressure, temperature, *, density_correction, pressure_unit, temperature_unit):
+    """Density-corrected equivalent wind speed, or raw speed when disabled."""
+
+    if not density_correction:
+        return speed
+    pressure_pa = pressure * (100.0 if pressure_unit == "hpa" else 1.0)
+    temperature_k = temperature + (273.15 if temperature_unit == "celsius" else 0.0)
+    return equivalent_wind_speed(speed, air_density(pressure_pa, temperature_k))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--timestamp-col", default="Tmstamp")
-    parser.add_argument("--turbine-col", default="TurbID")
-    parser.add_argument("--target-col", default="Patv")
-    parser.add_argument("--wind-speed-col", default="Wspd")
-    parser.add_argument("--pressure-col", default="Sp")
-    parser.add_argument("--temperature-col", default="T2m")
-    parser.add_argument("--pressure-unit", choices=("pa", "hpa"), default="pa")
-    parser.add_argument("--temperature-unit", choices=("kelvin", "celsius"), default="kelvin")
-    parser.add_argument(
-        "--density-correction",
-        action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Use --no-density-correction for the A1 raw-wind-speed ablation.",
-    )
-    parser.add_argument("--wind-direction-col", default="Wdir")
-    parser.add_argument("--nacelle-direction-col", default="Ndir")
+    parser.add_argument("--timestamp-col", default="Date/Time")
+    parser.add_argument("--turbine-col", default="WTG")
+    parser.add_argument("--target-col", default="Active Power")
+    parser.add_argument("--wind-speed-col", default="Wind Speed")
+    parser.add_argument("--wind-direction-col", default="Wind Direction")
+    parser.add_argument("--nacelle-direction-col", default="Nacelle Position")
     parser.add_argument(
         "--wind-direction-mode",
         choices=("global", "relative_plus_nacelle"),
-        default="relative_plus_nacelle",
+        default="global",
+        help="Kelmarsh publishes a global (mast) wind direction; no nacelle offset.",
     )
+    parser.add_argument("--pressure-col", default="Pressure")
+    parser.add_argument("--temperature-col", default="Temperature")
+    parser.add_argument("--pressure-unit", choices=("pa", "hpa"), default="pa")
+    parser.add_argument("--temperature-unit", choices=("kelvin", "celsius"), default="celsius")
+    parser.add_argument(
+        "--density-correction",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Kelmarsh ships no pressure/temperature columns by default; opt in only if supplied.",
+    )
+    parser.add_argument("--speed-max", type=float, default=25.0, help="Anemometer over-range cutoff.")
     parser.add_argument("--features", nargs="+", required=True)
     parser.add_argument("--history", type=int, default=24)
     parser.add_argument("--horizon", type=int, default=6)
@@ -87,23 +116,32 @@ def main() -> None:
     parser.add_argument("--correlation-k", type=int, default=12)
     parser.add_argument("--correlation-mode", choices=("raw", "difference"), default="difference")
     parser.add_argument("--geographic-distance-scale", type=float)
+    parser.add_argument("--dataset-name", default="kelmarsh_v1")
+    parser.add_argument("--dataset-license", default="CC-BY-4.0")
+    parser.add_argument(
+        "--dataset-origin-url",
+        default="https://zenodo.org/record/5841834",
+    )
     args = parser.parse_args()
 
-    required_features = {
-        args.target_col,
-        args.wind_speed_col,
-        args.pressure_col,
-        args.temperature_col,
-        args.wind_direction_col,
-    }
+    required_features = {args.target_col, args.wind_speed_col, args.wind_direction_col}
     if not required_features.issubset(args.features):
         raise ValueError(f"--features must include {sorted(required_features)}")
+    if args.density_correction and not {args.pressure_col, args.temperature_col}.issubset(args.features):
+        raise ValueError("--density-correction requires pressure and temperature features")
     if (
         args.wind_direction_mode == "relative_plus_nacelle"
         and args.nacelle_direction_col not in args.features
     ):
         raise ValueError("relative_plus_nacelle requires the nacelle direction feature")
     args.output_dir.mkdir(parents=True, exist_ok=False)
+
+    reason_code_fn = partial(
+        generic_scada_reason_codes,
+        power_col=args.target_col,
+        wind_speed_col=args.wind_speed_col,
+        speed_max=args.speed_max,
+    )
 
     raw = _read_table(args.input)
     rigid = build_rigid_grid(
@@ -120,6 +158,7 @@ def main() -> None:
         timestamp_col=args.timestamp_col,
         turbine_col=args.turbine_col,
         step_minutes=args.step_minutes,
+        reason_code_fn=reason_code_fn,
     )
     train_means = train_unfilled["fitted_means"]
     train_bundle = build_sdwpf_bundle(
@@ -129,6 +168,7 @@ def main() -> None:
         turbine_col=args.turbine_col,
         step_minutes=args.step_minutes,
         train_means=train_means,
+        reason_code_fn=reason_code_fn,
     )
     train_tensor = bundle_to_time_node(
         train_bundle, timestamp_col=args.timestamp_col, turbine_col=args.turbine_col
@@ -145,20 +185,20 @@ def main() -> None:
     feature_std = np.sqrt(np.square(centered).sum(axis=(0, 1)) / feature_count)
     feature_std = np.maximum(feature_std, 1e-6)
     speed = train_tensor["x_fill"][..., feature_index[args.wind_speed_col]]
-    pressure = train_tensor["x_fill"][..., feature_index[args.pressure_col]]
-    temperature = train_tensor["x_fill"][..., feature_index[args.temperature_col]]
     power = train_tensor["x_fill"][..., feature_index[args.target_col]]
     valid = train_tensor["mask"][..., feature_index[args.target_col]].astype(bool)
-    pressure_for_density = pressure * (100.0 if args.pressure_unit == "hpa" else 1.0)
-    temperature_for_density = temperature + (
-        273.15 if args.temperature_unit == "celsius" else 0.0
-    )
-    equivalent = (
-        equivalent_wind_speed(
-            speed, air_density(pressure_for_density, temperature_for_density)
-        )
-        if args.density_correction
-        else speed
+    if args.density_correction:
+        pressure = train_tensor["x_fill"][..., feature_index[args.pressure_col]]
+        temperature = train_tensor["x_fill"][..., feature_index[args.temperature_col]]
+    else:
+        pressure = temperature = None
+    equivalent = _equivalent(
+        speed,
+        pressure,
+        temperature,
+        density_correction=args.density_correction,
+        pressure_unit=args.pressure_unit,
+        temperature_unit=args.temperature_unit,
     )
     curve = EmpiricalPowerCurve(
         n_bins=args.curve_bins,
@@ -197,6 +237,7 @@ def main() -> None:
             turbine_col=args.turbine_col,
             step_minutes=args.step_minutes,
             train_means=train_means,
+            reason_code_fn=reason_code_fn,
         )
         tensor = bundle_to_time_node(
             bundle, timestamp_col=args.timestamp_col, turbine_col=args.turbine_col
@@ -205,18 +246,18 @@ def main() -> None:
         target = x_raw[..., feature_index[args.target_col]]
         target_mask = tensor["mask"][..., feature_index[args.target_col]]
         split_speed = x_raw[..., feature_index[args.wind_speed_col]]
-        split_pressure = x_raw[..., feature_index[args.pressure_col]]
-        split_temperature = x_raw[..., feature_index[args.temperature_col]]
-        pressure_for_density = split_pressure * (100.0 if args.pressure_unit == "hpa" else 1.0)
-        temperature_for_density = split_temperature + (
-            273.15 if args.temperature_unit == "celsius" else 0.0
-        )
-        split_equivalent = (
-            equivalent_wind_speed(
-                split_speed, air_density(pressure_for_density, temperature_for_density)
-            )
-            if args.density_correction
-            else split_speed
+        if args.density_correction:
+            split_pressure = x_raw[..., feature_index[args.pressure_col]]
+            split_temperature = x_raw[..., feature_index[args.temperature_col]]
+        else:
+            split_pressure = split_temperature = None
+        split_equivalent = _equivalent(
+            split_speed,
+            split_pressure,
+            split_temperature,
+            density_correction=args.density_correction,
+            pressure_unit=args.pressure_unit,
+            temperature_unit=args.temperature_unit,
         )
         p_pc_time = curve.predict(split_equivalent)
         x_model = ((x_raw - feature_mean) / feature_std).astype(np.float32)
@@ -260,12 +301,19 @@ def main() -> None:
     derived_columns = ["equivalent_wind_speed"] if args.density_correction else []
     if set(published_columns) & set(derived_columns):
         raise ValueError("published_columns and derived_columns must be disjoint")
+
+    train_codes = np.asarray(train_bundle["reason_code"])
+    reason_distribution = {
+        {0: "VALID", 1: "MISSING", 2: "UNKNOWN", 3: "ABNORMAL"}[int(code)]: int(count)
+        for code, count in zip(*np.unique(train_codes, return_counts=True))
+    }
+
     metadata = {
         "input": str(args.input.resolve()),
         "input_sha256": _sha256(args.input),
-        "dataset_name": "sdwpf_full_v2",
-        "dataset_license": "CC-BY-4.0",
-        "dataset_origin_url": "https://figshare.com/articles/dataset/SDWPF_dataset/24798654",
+        "dataset_name": args.dataset_name,
+        "dataset_license": args.dataset_license,
+        "dataset_origin_url": args.dataset_origin_url,
         "published_columns": published_columns,
         "derived_columns": derived_columns,
         "features": args.features,
@@ -279,6 +327,8 @@ def main() -> None:
         },
         "power_curve": curve.to_dict(),
         "density_correction": bool(args.density_correction),
+        "reason_code_strategy": "generic_scada",
+        "reason_code_distribution_train": reason_distribution,
         "physical_units": {
             "pressure_input": args.pressure_unit,
             "temperature_input": args.temperature_unit,
@@ -313,7 +363,16 @@ def main() -> None:
     (args.output_dir / "metadata.json").write_text(
         json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    print(json.dumps({"output": str(args.output_dir), "splits": manifest}, indent=2))
+    print(
+        json.dumps(
+            {
+                "output": str(args.output_dir),
+                "splits": manifest,
+                "reason_code_distribution_train": reason_distribution,
+            },
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

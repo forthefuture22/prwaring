@@ -146,6 +146,22 @@ def _core_ablation_specs() -> tuple[ExperimentSpec, ...]:
                 ("issue_time_forecast", {"data.weather_protocol": "issue_time_forecast"}),
             ),
         ),
+        ExperimentSpec(
+            "A12", "ablation",
+            "Gate intervention: learned vs uniform vs parameter-matched "
+            "(+frozen_mean/shuffled post-hoc)",
+            "Does the input-dependent learned gate beat uniform, parameter-matched, "
+            "frozen-mean and shuffled controls, i.e. is dynamic gating itself (not "
+            "extra parameters, a static weight, or the marginal weight distribution) "
+            "contributing? frozen_mean/shuffled are post-hoc interventions on the "
+            "learned checkpoint (see post_command_templates), not retrained variants.",
+            ("rmse", "crps", "graph_weights"),
+            (
+                ("learned", {}),
+                ("uniform", {"graphs.gate_mode": "uniform"}),
+                ("parameter_matched", {"graphs.gate_mode": "parameter_matched"}),
+            ),
+        ),
     )
 
 

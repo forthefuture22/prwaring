@@ -82,7 +82,37 @@ class DynamicMultiGraphResidualForecaster(nn.Module):
     n_static_graphs:
         Number of fixed graphs passed at runtime (normally geo and corr).  A
         batch directional graph and one adaptive graph are always added.
+    gate_mode:
+        How the per-sample graph mixture weights are produced.
+
+        ``learned`` (default)
+            The original behaviour: an MLP reads ``hidden`` and softmax produces
+            input-dependent weights.  This path is bit-for-bit identical to the
+            pre-intervention implementation.
+        ``uniform``
+            Every enabled graph gets equal weight (1 / #enabled graphs); the gate
+            MLP output is ignored.  This is the zero-hypothesis baseline of
+            Wiegreffe & Pinter (2019).
+        ``parameter_matched``
+            The gate MLP is retained with exactly the same parameter count as
+            ``learned`` (so total parameter count matches learned), but its
+            output is ignored, weights are fixed to the uniform distribution,
+            and the gate parameters are frozen (``requires_grad=False``).  This
+            rules out "improvement just from extra parameter capacity" (Michel
+            et al. 2019; Wiegreffe & Pinter 2019).
+
+        ``frozen_mean`` and ``shuffled`` are *post-hoc* interventions on a trained
+        ``learned`` checkpoint and are intentionally NOT modes here; they are
+        driven by ``prwarn.cli.evaluate_gate_intervention`` through the
+        ``_posthoc_weights`` instance attribute documented on ``_mix_graphs``.
+    gate_hidden_dim:
+        Width of the gate MLP's hidden layer.  When ``None`` (default) it falls
+        back to ``hidden_dim``, so the gate is byte-identical to the original
+        coupled implementation.  Setting it decouples the gate width from the
+        backbone width (gap-4 OFAT gate-width sweep).
     """
+
+    GATE_MODES = ("learned", "uniform", "parameter_matched")
 
     def __init__(
         self,
@@ -102,10 +132,19 @@ class DynamicMultiGraphResidualForecaster(nn.Module):
             "geo", "corr", "directional", "adaptive"
         ),
         future_weather_features: int = 0,
+        gate_mode: str = "learned",
+        gate_hidden_dim: int | None = None,
     ) -> None:
         super().__init__()
         if temporal_kernel % 2 == 0:
             raise ValueError("temporal_kernel must be odd")
+        if gate_mode not in self.GATE_MODES:
+            raise ValueError(
+                f"gate_mode must be one of {self.GATE_MODES}, got {gate_mode!r}"
+            )
+        self.gate_mode = gate_mode
+        if gate_hidden_dim is not None and int(gate_hidden_dim) <= 0:
+            raise ValueError("gate_hidden_dim must be positive when set")
         self.n_nodes = n_nodes
         self.n_static_graphs = n_static_graphs
         self.rated_power = rated_power
@@ -144,11 +183,19 @@ class DynamicMultiGraphResidualForecaster(nn.Module):
             nn.GELU(),
         )
         self.adaptive = AdaptiveAdjacency(n_nodes)
+        # Gate hidden width decoupled from the backbone width (gap-4 OFAT).
+        # None reproduces the original coupled `hidden_dim` width exactly.
+        gate_inner = int(gate_hidden_dim) if gate_hidden_dim is not None else hidden_dim
         self.gate = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim),
+            nn.Linear(hidden_dim, gate_inner),
             nn.GELU(),
-            nn.Linear(hidden_dim, n_static_graphs + 2),
+            nn.Linear(gate_inner, n_static_graphs + 2),
         )
+        if gate_mode == "parameter_matched":
+            # Keep the gate parameters (matching learned parameter count) but make
+            # them untrainable: the fixed uniform distribution is used instead.
+            for parameter in self.gate.parameters():
+                parameter.requires_grad_(False)
         self.graph_blocks = nn.ModuleList(
             [GraphResidualBlock(hidden_dim, dropout) for _ in range(graph_layers)]
         )
@@ -179,7 +226,22 @@ class DynamicMultiGraphResidualForecaster(nn.Module):
             raise ValueError("directional_graph has wrong shape")
         logits = self.gate(hidden.mean(dim=1))
         logits = logits.masked_fill(~self.enabled_graph_mask[None], float("-inf"))
-        weights = torch.softmax(logits, dim=-1)
+        if self.gate_mode == "learned":
+            weights = torch.softmax(logits, dim=-1)
+        elif self.gate_mode in ("uniform", "parameter_matched"):
+            # Equal weight across enabled graphs; disabled graphs receive zero.
+            enabled = self.enabled_graph_mask.to(dtype=logits.dtype)
+            weights = (enabled / enabled.sum()).unsqueeze(0).expand(batch, -1)
+        else:  # pragma: no cover - guarded in __init__
+            raise ValueError(f"unsupported gate_mode: {self.gate_mode!r}")
+        # Post-hoc intervention hook (frozen_mean / shuffled), exclusively driven
+        # by prwarn.cli.evaluate_gate_intervention on a learned checkpoint.  When
+        # left as the default (None) the learned path is unchanged bit-for-bit.
+        # When set it must be a (batch, n_static_graphs + 2) Tensor aligned to the
+        # current batch and replaces the produced weights.
+        posthoc = getattr(self, "_posthoc_weights", None)
+        if posthoc is not None:
+            weights = posthoc.to(dtype=weights.dtype, device=weights.device)
         mixed = mix_graphs_from_weights(
             static_graphs, directional_graph, self.adaptive(), weights
         )

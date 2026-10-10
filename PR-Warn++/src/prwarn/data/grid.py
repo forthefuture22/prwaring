@@ -8,7 +8,7 @@ mask and elapsed time retain observation semantics.
 from __future__ import annotations
 
 from enum import IntEnum
-from typing import Iterable, Mapping
+from typing import Callable, Iterable, Mapping
 
 import numpy as np
 import pandas as pd
@@ -111,6 +111,47 @@ def sdwpf_reason_codes(
     return codes
 
 
+def generic_scada_reason_codes(
+    frame: pd.DataFrame,
+    *,
+    power_col: str,
+    wind_speed_col: str,
+    speed_max: float = 25.0,
+) -> np.ndarray:
+    """Dataset-agnostic row-level reason codes for SCADA tables without pitch/nacelle.
+
+    This is the quality-code strategy for farms such as Kelmarsh, whose published
+    table has no blade-pitch or nacelle-direction channels, so SDWPF's
+    ``pitch > 89`` / ``Ndir in [-720, 720]`` / ``Wdir in [-180, 180]`` rules do
+    not transfer.  Priority stays missing -> abnormal, matching
+    :func:`sdwpf_reason_codes`:
+
+    * ``MISSING`` -- power or wind speed is absent/unparseable;
+    * ``ABNORMAL`` -- wind speed exceeds ``speed_max`` (anemometer over-range,
+      beyond typical cut-out) or power is negative (non-physical generation);
+    * ``VALID`` -- everything else.
+
+    The ``UNKNOWN`` bucket deliberately collapses into ``ABNORMAL`` because the
+    only distinction available without the SDWPF-specific channels is
+    "physically usable" versus "not".
+    """
+
+    if power_col not in frame.columns or wind_speed_col not in frame.columns:
+        raise KeyError(f"{power_col!r} and {wind_speed_col!r} are required")
+
+    n = len(frame)
+    codes = np.full(n, ReasonCode.VALID, dtype=np.int8)
+    power = pd.to_numeric(frame[power_col], errors="coerce").to_numpy()
+    speed = pd.to_numeric(frame[wind_speed_col], errors="coerce").to_numpy()
+
+    missing = np.isnan(power) | np.isnan(speed)
+    codes[missing] = ReasonCode.MISSING
+
+    abnormal = (speed > speed_max) | (power < 0.0)
+    codes[(codes == ReasonCode.VALID) & abnormal] = ReasonCode.ABNORMAL
+    return codes
+
+
 def _time_since_valid(valid: np.ndarray, step_minutes: float) -> np.ndarray:
     """Compute elapsed minutes since the last valid value for a 2-D array."""
 
@@ -137,19 +178,31 @@ def build_sdwpf_bundle(
     turbine_col: str = "TurbID",
     step_minutes: float = 10.0,
     train_means: Mapping[str, float] | None = None,
+    reason_code_fn: Callable[[pd.DataFrame], np.ndarray] | None = None,
 ) -> dict[str, object]:
     """Create aligned `X_fill`, `M`, `delta_t`, and row reason codes.
 
     `train_means` must be fitted from the Train split by the caller.  If it is
     omitted, means are returned for inspection but no non-forward-fill fallback
     is allowed, which prevents accidental full-dataset leakage.
+
+    `reason_code_fn` selects the row-validity policy per dataset.  When `None`
+    the legacy SDWPF policy (`sdwpf_reason_codes`) is used, which keeps every
+    existing caller backward compatible.  External farms without pitch/nacelle
+    channels pass `generic_scada_reason_codes` instead.
     """
 
     absent = set(feature_columns) - set(rigid_frame.columns)
     if absent:
         raise KeyError(f"feature columns missing: {sorted(absent)}")
     work = rigid_frame.sort_values([turbine_col, timestamp_col], kind="stable").copy()
-    codes = sdwpf_reason_codes(work)
+    if reason_code_fn is None:
+        codes = sdwpf_reason_codes(work)
+    else:
+        codes = reason_code_fn(work)
+        codes = np.asarray(codes)
+        if codes.shape[0] != len(work):
+            raise ValueError("reason_code_fn must return one code per frame row")
     row_valid = codes == ReasonCode.VALID
 
     values = work[feature_columns].apply(pd.to_numeric, errors="coerce")
